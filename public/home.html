@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rank It</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/common.css">
+<style>
+  .wrap{max-width:420px;padding-top:12vh;text-align:center}
+  h1{font-size:30px}
+  form{display:flex;flex-direction:column;gap:12px;margin-top:22px}
+  #code{font-size:32px;letter-spacing:.3em;text-align:center;padding:14px;font-weight:700}
+  .btn{padding:14px;font-size:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Rank It</h1>
+  <p class="sub">Enter the code you were given to join a poll.</p>
+  <form class="card" id="f">
+    <input id="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="0000" aria-label="Poll code" autofocus>
+    <button class="btn" id="go">Join poll</button>
+    <span class="status err" id="msg" role="alert"></span>
+  </form>
+  <div class="ver" id="ver"></div>
+</div>
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  $('ver').textContent = 'Version ' + (window.APP_VERSION || 'dev');
+  $('code').addEventListener('input', e => { e.target.value = e.target.value.replace(/\D/g, ''); $('msg').textContent = ''; });
+  $('f').addEventListener('submit', async e => {
+    e.preventDefault();
+    const code = $('code').value.trim();
+    if (!code) return $('code').focus();
+    $('go').disabled = true; $('msg').textContent = '';
+    try {
+      const r = await fetch('/api/code/' + encodeURIComponent(code));
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || 'Something went wrong.');
+      location.href = '/p/' + d.id;
+    } catch (err) { $('msg').textContent = err.message; $('go').disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>
