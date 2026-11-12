@@ -44,6 +44,7 @@
   .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-bottom:14px}
   .empty{color:var(--muted);text-align:center;padding:24px 8px}
   .banner{background:var(--accent-soft);color:var(--accent);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+  .note{background:var(--accent-soft);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:10px}
   .hidden{display:none}
   .ver{color:var(--muted);font-size:11px;text-align:center;margin-top:28px}
 </style>
@@ -114,11 +115,15 @@
     else if (closed) status = '';
     else if (dirty) status = '<span class="status">Unsaved changes</span>';
     else if (S.myOrder && fresh.length) status = '<span class="status">New items were added — place them and save again.</span>';
-    else if (S.myOrder) status = '<span class="status ok">✓ Your ranking is saved. You can change it any time.</span>';
+    else if (S.myOrder) status = '<span class="status ok">✓ Your ranking is saved.</span>';
     const canSave = !closed && !saving && (dirty || !S.myOrder || fresh.length);
 
     body.innerHTML =
-      (closed ? '<div class="banner">Voting is closed.' + (S.myOrder ? ' Your ranking is shown below.' : '') + '</div>' : '<p class="hint">Drag with the handle ⋮⋮, or use the arrows.</p>') +
+      (closed ? '<div class="banner">Voting is closed.' + (S.myOrder ? ' Your ranking is shown below.' : '') + '</div>'
+        : S.myOrder
+          ? '<div class="note">This is your saved ranking. You can come back any time and adjust your vote.</div>'
+          : '<div class="note">This list is in a random order until you vote. After voting, you can come back and adjust your vote.</div>') +
+      (closed ? '' : '<p class="hint">Drag with the handle ⋮⋮, or use the arrows.</p>') +
       '<ol class="list" id="list">' + order.map((id, i) =>
         '<li class="item' + (fresh.includes(id) ? ' new' : '') + '" data-id="' + esc(id) + '">' +
           '<span class="grip" aria-hidden="true"' + (closed ? ' style="visibility:hidden"' : '') + '>⋮⋮</span>' +
