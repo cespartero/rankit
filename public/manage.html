@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rank It — Manage</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#f6f5f2; --card:#fff; --ink:#1d1c1a; --muted:#6f6b64; --line:#e4e1da; --accent:#c4552d; --accent-soft:#f7e3da; --good:#2f7a4f; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#171614; --card:#211f1c; --ink:#f0ede7; --muted:#a29d94; --line:#36332e; --accent:#e27650; --accent-soft:#3a2720; --good:#5fb383; } }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif}
+  .wrap{max-width:720px;margin:0 auto;padding:28px 18px 60px;display:flex;flex-direction:column;gap:16px}
+  h1{font-size:24px;margin:0}
+  h2{font-size:16px;margin:0 0 10px}
+  .badge{display:inline-block;font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px;margin-left:8px;vertical-align:middle}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  label{display:block;font-size:13px;font-weight:600;margin:12px 0 6px}
+  label:first-of-type{margin-top:0}
+  input[type=text],textarea,select{width:100%;font:14px/1.5 Inter,sans-serif;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
+  textarea{min-height:200px;resize:vertical}
+  .hint{color:var(--muted);font-size:13px;margin:8px 0 0}
+  .row{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .btn{border:0;background:var(--accent);color:#fff;font:600 14px Inter,sans-serif;padding:10px 16px;border-radius:10px;cursor:pointer}
+  .btn.secondary{background:none;color:var(--ink);border:1px solid var(--line)}
+  .btn.danger{background:none;color:var(--accent);border:1px solid var(--accent)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .status{font-size:13px;color:var(--muted)}
+  .status.ok{color:var(--good)} .status.err{color:var(--accent)}
+  .toggle{display:flex;align-items:center;gap:10px;font-weight:500}
+  .toggle input{width:20px;height:20px;accent-color:var(--accent)}
+  .link{display:flex;gap:8px}
+  .link input{flex:1}
+  .res{display:flex;flex-direction:column;gap:12px}
+  .r{display:grid;grid-template-columns:30px 1fr auto;gap:4px 10px;align-items:center}
+  .rk{font-weight:700;font-size:17px;color:var(--accent);text-align:center}
+  .nm{font-weight:500}
+  .sc{font-size:13px;color:var(--muted);text-align:right;white-space:nowrap}
+  .bar{grid-column:2/4;height:8px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
+  .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-bottom:14px}
+  .empty{color:var(--muted);text-align:center;padding:18px 8px}
+  .hidden{display:none}
+  .ver{color:var(--muted);font-size:11px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span id="title">Rank It</span><span class="badge">Manage</span></h1>
+
+  <section class="card hidden" id="linkCard">
+    <h2>Voting link</h2>
+    <div class="link"><input type="text" id="voteUrl" readonly><button class="btn secondary" id="copy">Copy</button></div>
+  </section>
+
+  <section class="card">
+    <h2>Results</h2>
+    <div id="resBody"><div class="empty">Loading…</div></div>
+    <div class="row" style="border-top:1px solid var(--line);padding-top:14px">
+      <button class="btn secondary" id="copyRes">Copy results</button>
+      <button class="btn danger" id="clear">Clear all votes</button>
+      <span id="clearConfirm" class="hidden"><span class="status">Clear every vote? This can't be undone.</span>
+        <button class="btn danger" id="clearYes">Yes, clear</button> <button class="btn secondary" id="clearNo">Cancel</button></span>
+      <span class="status" id="resStatus"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Settings</h2>
+    <label class="toggle"><input type="checkbox" id="open"> Voting is open</label>
+    <label for="resultsMode">Who can see the results</label>
+    <select id="resultsMode">
+      <option value="always">Everyone, live</option>
+      <option value="after-vote">Only people who have voted</option>
+      <option value="hidden">Nobody yet (only you, here)</option>
+    </select>
+    <div class="row"><span class="status" id="setStatus"></span></div>
+  </section>
+
+  <section class="card">
+    <h2>The list</h2>
+    <label for="aTitle">Title</label>
+    <input type="text" id="aTitle" maxlength="120" placeholder="e.g. Best team name">
+    <label for="aSub">Instructions for voters</label>
+    <input type="text" id="aSub" maxlength="300" placeholder="Drag the items into your order — #1 is your favourite.">
+    <label for="aItems">Items — one per line</label>
+    <textarea id="aItems" placeholder="Item one&#10;Item two&#10;Item three"></textarea>
+    <p class="hint">Changing an item's wording counts as a new item, and removing one drops its votes. People who voted before an item was added are asked to place it next time they visit.</p>
+    <div class="row"><button class="btn" id="saveList">Save list</button><span class="status" id="listStatus"></span></div>
+  </section>
+
+  <div class="ver" id="ver"></div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  $('ver').textContent = 'Version ' + (window.APP_VERSION || 'dev');
+  if (window.VOTE_URL) { $('linkCard').classList.remove('hidden'); $('voteUrl').value = window.VOTE_URL; }
+
+  let S = null, listTouched = false;
+  ['aTitle', 'aSub', 'aItems'].forEach(id => $(id).addEventListener('input', () => { listTouched = true; $('listStatus').textContent = 'Unsaved changes'; $('listStatus').className = 'status'; }));
+
+  async function api(method, url, body){
+    const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    let data = {}; try { data = await r.json(); } catch (_) {}
+    if (!r.ok) throw new Error(data.error || 'Request failed (' + r.status + ')');
+    return data;
+  }
+  const flash = (id, text, cls) => { $(id).textContent = text; $(id).className = 'status ' + (cls || ''); };
+
+  function apply(next){
+    S = next;
+    $('title').textContent = S.title || 'Rank It';
+    document.title = (S.title || 'Rank It') + ' — Manage';
+    $('open').checked = S.open;
+    $('resultsMode').value = S.resultsMode;
+    if (!listTouched) {
+      $('aTitle').value = S.title; $('aSub').value = S.subtitle;
+      $('aItems').value = S.items.map(i => i.text).join('\n');
+    }
+    renderResults();
+  }
+
+  function renderResults(){
+    const R = S.results, n = S.items.length, body = $('resBody');
+    if (!n) { body.innerHTML = '<div class="empty">Add your items below to get started.</div>'; return; }
+    if (!R.voters) { body.innerHTML = '<div class="empty">No votes yet.</div>'; return; }
+    body.innerHTML =
+      '<div class="meta"><span>' + R.voters + ' ' + (R.voters === 1 ? 'person has' : 'people have') + ' voted</span><span>Points: #1 = ' + (n - 1) + ', last = 0</span></div>' +
+      '<div class="res">' + R.rows.map(r =>
+        '<div class="r"><span class="rk">' + r.rank + '</span><span class="nm">' + esc(r.text) + '</span>' +
+        '<span class="sc">' + r.points + ' pts' + (r.avgPosition ? ' · avg #' + r.avgPosition.toFixed(1) : '') + (r.firsts ? ' · ' + r.firsts + '× first' : '') + '</span>' +
+        '<span class="bar"><i style="width:' + Math.round(r.points / R.maxPoints * 100) + '%"></i></span></div>').join('') + '</div>';
+  }
+
+  $('saveList').onclick = async () => {
+    $('saveList').disabled = true; flash('listStatus', 'Saving…');
+    try {
+      const items = $('aItems').value.split('\n').map(s => s.trim()).filter(Boolean);
+      listTouched = false;
+      apply(await api('PUT', '/api/list', { title: $('aTitle').value, subtitle: $('aSub').value, items }));
+      flash('listStatus', '✓ Saved (' + S.items.length + ' items)', 'ok');
+    } catch (e) { listTouched = true; flash('listStatus', e.message, 'err'); }
+    $('saveList').disabled = false;
+  };
+
+  async function saveSettings(patch){
+    flash('setStatus', 'Saving…');
+    try { apply(await api('PATCH', '/api/settings', patch)); flash('setStatus', '✓ Saved', 'ok'); }
+    catch (e) { flash('setStatus', e.message, 'err'); }
+  }
+  $('open').onchange = () => saveSettings({ open: $('open').checked });
+  $('resultsMode').onchange = () => saveSettings({ results: $('resultsMode').value });
+
+  $('clear').onclick = () => { $('clear').classList.add('hidden'); $('clearConfirm').classList.remove('hidden'); };
+  $('clearNo').onclick = () => { $('clear').classList.remove('hidden'); $('clearConfirm').classList.add('hidden'); };
+  $('clearYes').onclick = async () => {
+    $('clearNo').onclick();
+    try { apply(await api('DELETE', '/api/ballots')); flash('resStatus', '✓ All votes cleared', 'ok'); }
+    catch (e) { flash('resStatus', e.message, 'err'); }
+  };
+
+  async function copy(text, statusId){
+    try { await navigator.clipboard.writeText(text); flash(statusId, '✓ Copied', 'ok'); }
+    catch (_) { flash(statusId, 'Copy failed — select and copy by hand.', 'err'); }
+  }
+  $('copy').onclick = () => copy($('voteUrl').value, 'resStatus');
+  $('copyRes').onclick = () => {
+    if (!S || !S.results.voters) return flash('resStatus', 'No votes yet.', 'err');
+    const lines = [(S.title || 'Results') + ' — ' + S.results.voters + ' votes', ''].concat(
+      S.results.rows.map(r => r.rank + '. ' + r.text + ' (' + r.points + ' pts)'));
+    copy(lines.join('\n'), 'resStatus');
+  };
+
+  fetch('/api/state').then(r => r.json()).then(apply).catch(() => {});
+  const es = new EventSource('/api/events');
+  es.addEventListener('state', ev => apply(JSON.parse(ev.data)));
+})();
+</script>
+</body>
+</html>
