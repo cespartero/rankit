@@ -2,9 +2,9 @@
 
 Put up a list and let people rank it. Each person drags the items into their own order, and everyone's rankings combine into one live leaderboard.
 
-- **Vote site (public):** open the link, drag the items into order (or use the ▲▼ arrows), and submit. You can come back and change your ranking any time. Items start in a random order so the list order doesn't bias anyone.
+- **Vote site (public):** open the link, drag the items into order (or use the ▲▼ arrows), tap **Don't know** for anything you can't judge, and submit. You can come back and change your ranking any time. Items start in a random order so the list order doesn't bias anyone.
 - **Manage site (behind Cloudflare Access):** set the title, instructions and items. Open or close voting, choose who sees the results (everyone live, only people who've voted, or nobody yet), copy the results, and clear all votes.
-- **Results:** a Borda count. With n items, 1st place earns n−1 points and last place earns 0. Each item also shows its average position and how many people ranked it first.
+- **Results:** on each ballot the top item scores 100, the bottom item 0, and the rest are spread evenly between. An item's score is the average over the people who ranked it. "Don't know" counts neither for nor against it. Each item also shows how many people ranked it, how many didn't know it, and how many put it first. A ballot needs at least 2 ranked items.
 
 ## How the code is organised
 

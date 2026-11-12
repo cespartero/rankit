@@ -118,7 +118,7 @@ function makeHandler(state, mode) {
         if (m === 'PUT' && p === '/api/ballot') {
           const id = voterId(req, res);
           const b = await readJson(req);
-          return send(res, 200, state.submitBallot(id, b.order));
+          return send(res, 200, state.submitBallot(id, b.order, b.unknown || []));
         }
         return send(res, 404, { error: 'Not found' }); // the vote port can't change the list
       }

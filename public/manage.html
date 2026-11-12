@@ -32,11 +32,11 @@
   .link{display:flex;gap:8px}
   .link input{flex:1}
   .res{display:flex;flex-direction:column;gap:12px}
-  .r{display:grid;grid-template-columns:30px 1fr auto;gap:4px 10px;align-items:center}
+  .r{display:grid;grid-template-columns:30px 1fr;gap:2px 10px;align-items:center}
   .rk{font-weight:700;font-size:17px;color:var(--accent);text-align:center}
   .nm{font-weight:500}
-  .sc{font-size:13px;color:var(--muted);text-align:right;white-space:nowrap}
-  .bar{grid-column:2/4;height:8px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .sc{grid-column:2;font-size:13px;color:var(--muted)}
+  .bar{grid-column:2;margin-top:4px;height:8px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
   .bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
   .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-bottom:14px}
   .empty{color:var(--muted);text-align:center;padding:18px 8px}
@@ -124,15 +124,22 @@
   }
 
   function renderResults(){
-    const R = S.results, n = S.items.length, body = $('resBody');
-    if (!n) { body.innerHTML = '<div class="empty">Add your items below to get started.</div>'; return; }
+    const R = S.results, body = $('resBody');
+    if (!S.items.length) { body.innerHTML = '<div class="empty">Add your items below to get started.</div>'; return; }
     if (!R.voters) { body.innerHTML = '<div class="empty">No votes yet.</div>'; return; }
     body.innerHTML =
-      '<div class="meta"><span>' + R.voters + ' ' + (R.voters === 1 ? 'person has' : 'people have') + ' voted</span><span>Points: #1 = ' + (n - 1) + ', last = 0</span></div>' +
-      '<div class="res">' + R.rows.map(r =>
-        '<div class="r"><span class="rk">' + r.rank + '</span><span class="nm">' + esc(r.text) + '</span>' +
-        '<span class="sc">' + r.points + ' pts' + (r.avgPosition ? ' · avg #' + r.avgPosition.toFixed(1) : '') + (r.firsts ? ' · ' + r.firsts + '× first' : '') + '</span>' +
-        '<span class="bar"><i style="width:' + Math.round(r.points / R.maxPoints * 100) + '%"></i></span></div>').join('') + '</div>';
+      '<div class="meta"><span>' + R.voters + ' ' + (R.voters === 1 ? 'person has' : 'people have') + ' voted</span>' +
+      '<span>Score 100 = ranked first by everyone who knew it</span></div>' +
+      '<div class="res">' + R.rows.map(r => {
+        const bits = [r.score === null ? 'not ranked yet' : 'score ' + r.score];
+        if (r.rankedBy) bits.push('ranked by ' + r.rankedBy);
+        if (r.unknownBy) bits.push(r.unknownBy + ' don\'t know');
+        if (r.firsts) bits.push(r.firsts + '× first');
+        return '<div class="r"><span class="rk">' + (r.rank ?? '–') + '</span><span class="nm">' + esc(r.text) + '</span>' +
+          '<span class="sc">' + bits.join(' · ') + '</span>' +
+          '<span class="bar"><i style="width:' + (r.score || 0) + '%"></i></span></div>';
+      }).join('') + '</div>' +
+      '<p class="hint">Items only a few people ranked can score high or low on very few votes, so check “ranked by”.</p>';
   }
 
   $('saveList').onclick = async () => {
@@ -170,7 +177,8 @@
   $('copyRes').onclick = () => {
     if (!S || !S.results.voters) return flash('resStatus', 'No votes yet.', 'err');
     const lines = [(S.title || 'Results') + ' — ' + S.results.voters + ' votes', ''].concat(
-      S.results.rows.map(r => r.rank + '. ' + r.text + ' (' + r.points + ' pts)'));
+      S.results.rows.map(r => (r.rank ?? '–') + '. ' + r.text + ' (' + (r.score === null ? 'not ranked' : 'score ' + r.score) +
+        ', ranked by ' + r.rankedBy + (r.unknownBy ? ', ' + r.unknownBy + ' don\'t know' : '') + ')'));
     copy(lines.join('\n'), 'resStatus');
   };
 
