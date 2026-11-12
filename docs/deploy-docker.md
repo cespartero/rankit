@@ -51,7 +51,8 @@ The manage port has no login of its own, so anyone on your home network who know
 
 - Each browser gets a random voter id in a cookie, so people can come back and change their ranking.
 - That's one ranking per browser. It stops casual double-voting, but someone could vote again from a private window or another device.
-- Results use a Borda count: with n items, a 1st place earns n−1 points and last place earns 0.
+- Voters can mark any item **Don't know**, but must rank at least 2 items.
+- On each ballot the top item scores 100, the bottom item 0, and the rest are spread evenly between. An item's score is the average over the people who ranked it, so "Don't know" counts neither for nor against it. Check the "ranked by" count, because an item only a few people ranked can score high or low on very few votes.
 
 ## Backups
 

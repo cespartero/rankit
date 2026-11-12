@@ -18,7 +18,7 @@
   .tab.on{background:var(--accent-soft);color:var(--accent)}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
   .hint{color:var(--muted);font-size:13px;margin:0 0 12px}
-  ol.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  ol.list,ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
   .item{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 10px 10px 4px;user-select:none;-webkit-user-select:none}
   .item.new{border-color:var(--accent)}
   .item.dragging{box-shadow:0 8px 22px rgba(0,0,0,.18);position:relative;z-index:2;background:var(--card)}
@@ -35,16 +35,20 @@
   .status{font-size:13px;color:var(--muted)}
   .status.ok{color:var(--good)} .status.err{color:var(--accent)}
   .res{display:flex;flex-direction:column;gap:12px}
-  .r{display:grid;grid-template-columns:30px 1fr auto;gap:4px 10px;align-items:center}
+  .r{display:grid;grid-template-columns:30px 1fr;gap:2px 10px;align-items:center}
   .rk{font-weight:700;font-size:17px;color:var(--accent);text-align:center}
   .nm{font-weight:500}
-  .sc{font-size:13px;color:var(--muted);text-align:right;white-space:nowrap}
-  .bar{grid-column:2/4;height:8px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .sc{grid-column:2;font-size:13px;color:var(--muted)}
+  .bar{grid-column:2;margin-top:4px;height:8px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
   .bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
   .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-bottom:14px}
   .empty{color:var(--muted);text-align:center;padding:24px 8px}
   .banner{background:var(--accent-soft);color:var(--accent);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:12px}
   .note{background:var(--accent-soft);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:10px}
+  .btns .dk{width:auto;padding:0 8px;font:500 12px Inter,sans-serif;color:var(--muted)}
+  .dkhead{font-weight:600;font-size:14px;margin:18px 0 8px}
+  .item.muted{opacity:.75;padding-left:12px}
+  .item.muted .txt{color:var(--muted)}
   .hidden{display:none}
   .ver{color:var(--muted);font-size:11px;text-align:center;margin-top:28px}
 </style>
@@ -77,7 +81,8 @@
   });
 
   let S = null;          // latest state from the server
-  let order = null;      // working order (item ids)
+  let order = null;      // working ranked order (item ids, best first)
+  let unknown = [];      // items marked "I don't know"
   let dirty = false;
   let saving = false;
   let msg = null;        // {text, cls}
@@ -86,13 +91,24 @@
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const textOf = id => (S.items.find(i => i.id === id) || {}).text || '';
   const ids = () => S.items.map(i => i.id);
-  const unranked = () => S.myOrder ? ids().filter(id => !S.myOrder.includes(id)) : [];
+  const voted = () => !!S.myOrder;
+  // items added since this person last voted
+  const unplaced = () => voted() ? ids().filter(id => !S.myOrder.includes(id) && !S.myUnknown.includes(id)) : [];
 
   function reconcile(){
     const all = ids();
-    if (dirty && order) { order = order.filter(id => all.includes(id)).concat(all.filter(id => !order.includes(id))); return; }
-    if (S.myOrder) { order = S.myOrder.concat(all.filter(id => !S.myOrder.includes(id))); return; }
-    if (!order || order.length !== all.length || order.some(id => !all.includes(id))) order = shuffle(all); // random start avoids bias
+    if (dirty && order) {
+      unknown = unknown.filter(id => all.includes(id));
+      order = order.filter(id => all.includes(id)).concat(all.filter(id => !order.includes(id) && !unknown.includes(id)));
+      return;
+    }
+    if (voted()) {
+      unknown = S.myUnknown.slice();
+      order = S.myOrder.concat(all.filter(id => !S.myOrder.includes(id) && !unknown.includes(id)));
+      return;
+    }
+    const known = (order || []).concat(unknown);
+    if (!order || known.length !== all.length || known.some(id => !all.includes(id))) { order = shuffle(all); unknown = []; } // random start avoids bias
   }
 
   function apply(next){
@@ -105,25 +121,29 @@
     renderResults();
   }
 
+  function change(){ dirty = true; msg = null; renderVote(); }
+
   function renderVote(){
     const body = $('voteBody');
     if (!S.items.length) { body.innerHTML = '<div class="empty">No items to rank yet. Check back soon.</div>'; return; }
     const closed = !S.open;
-    const fresh = unranked();
+    const fresh = unplaced();
+    const tooFew = order.length < Math.min(2, S.items.length);
     let status = '';
     if (msg) status = '<span class="status ' + msg.cls + '">' + esc(msg.text) + '</span>';
     else if (closed) status = '';
+    else if (tooFew) status = '<span class="status">Rank at least 2 items to vote.</span>';
     else if (dirty) status = '<span class="status">Unsaved changes</span>';
-    else if (S.myOrder && fresh.length) status = '<span class="status">New items were added — place them and save again.</span>';
-    else if (S.myOrder) status = '<span class="status ok">✓ Your ranking is saved.</span>';
-    const canSave = !closed && !saving && (dirty || !S.myOrder || fresh.length);
+    else if (voted() && fresh.length) status = '<span class="status">New items were added — place them and save again.</span>';
+    else if (voted()) status = '<span class="status ok">✓ Your ranking is saved.</span>';
+    const canSave = !closed && !saving && !tooFew && (dirty || !voted() || fresh.length);
 
     body.innerHTML =
-      (closed ? '<div class="banner">Voting is closed.' + (S.myOrder ? ' Your ranking is shown below.' : '') + '</div>'
-        : S.myOrder
+      (closed ? '<div class="banner">Voting is closed.' + (voted() ? ' Your ranking is shown below.' : '') + '</div>'
+        : voted()
           ? '<div class="note">This is your saved ranking. You can come back any time and adjust your vote.</div>'
           : '<div class="note">This list is in a random order until you vote. After voting, you can come back and adjust your vote.</div>') +
-      (closed ? '' : '<p class="hint">Drag with the handle ⋮⋮, or use the arrows.</p>') +
+      (closed ? '' : '<p class="hint">Drag with the handle ⋮⋮ or use the arrows. Tap <b>Don\'t know</b> for anything you can\'t judge — it won\'t count for or against that item.</p>') +
       '<ol class="list" id="list">' + order.map((id, i) =>
         '<li class="item' + (fresh.includes(id) ? ' new' : '') + '" data-id="' + esc(id) + '">' +
           '<span class="grip" aria-hidden="true"' + (closed ? ' style="visibility:hidden"' : '') + '>⋮⋮</span>' +
@@ -132,20 +152,36 @@
           (closed ? '' : '<span class="btns">' +
             '<button aria-label="Move up" data-mv="-1"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
             '<button aria-label="Move down" data-mv="1"' + (i === order.length - 1 ? ' disabled' : '') + '>▼</button>' +
+            '<button class="dk" data-dk="1" aria-label="I don\'t know ' + esc(textOf(id)) + '">Don\'t know</button>' +
           '</span>') +
         '</li>').join('') + '</ol>' +
+      (order.length ? '' : '<div class="empty" style="padding:12px">Nothing ranked yet — tap <b>Rank it</b> below.</div>') +
+      (unknown.length ? '<div class="dkhead">I don\'t know these <span class="status">— not counted</span></div>' +
+        '<ul class="list dklist">' + unknown.map(id =>
+          '<li class="item muted" data-id="' + esc(id) + '"><span class="txt">' + esc(textOf(id)) + '</span>' +
+          (closed ? '' : '<span class="btns"><button class="dk" data-rk="1" aria-label="Rank ' + esc(textOf(id)) + '">Rank it</button></span>') +
+          '</li>').join('') + '</ul>' : '') +
       (closed ? '' : '<div class="row"><button class="btn" id="save"' + (canSave ? '' : ' disabled') + '>' +
-        (saving ? 'Saving…' : S.myOrder ? 'Update my ranking' : 'Submit my ranking') + '</button>' + status + '</div>');
+        (saving ? 'Saving…' : voted() ? 'Update my ranking' : 'Submit my ranking') + '</button>' + status + '</div>');
 
     if (closed) return;
-    const list = $('list');
-    list.querySelectorAll('button[data-mv]').forEach(b => b.onclick = () => {
+    body.querySelectorAll('button[data-mv]').forEach(b => b.onclick = () => {
       const id = b.closest('.item').dataset.id;
       const i = order.indexOf(id), j = i + Number(b.dataset.mv);
       [order[i], order[j]] = [order[j], order[i]];
-      dirty = true; msg = null; renderVote();
+      change();
     });
-    list.querySelectorAll('.grip').forEach(g => g.addEventListener('pointerdown', startDrag));
+    body.querySelectorAll('button[data-dk]').forEach(b => b.onclick = () => {
+      const id = b.closest('.item').dataset.id;
+      order = order.filter(x => x !== id); unknown.push(id);
+      change();
+    });
+    body.querySelectorAll('button[data-rk]').forEach(b => b.onclick = () => {
+      const id = b.closest('.item').dataset.id;
+      unknown = unknown.filter(x => x !== id); order.push(id); // goes to the bottom; drag it into place
+      change();
+    });
+    body.querySelectorAll('#list .grip').forEach(g => g.addEventListener('pointerdown', startDrag));
     $('save').onclick = save;
   }
 
@@ -184,7 +220,7 @@
   async function save(){
     saving = true; msg = null; renderVote();
     try {
-      const r = await fetch('/api/ballot', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order }) });
+      const r = await fetch('/api/ballot', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order, unknown }) });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Could not save.');
       dirty = false; msg = null;
@@ -203,15 +239,25 @@
         : 'Submit your ranking to see the results.') + '<br><span class="status">' + S.voters + ' ' + (S.voters === 1 ? 'person has' : 'people have') + ' voted so far.</span></div>';
       return;
     }
-    const R = S.results, n = S.items.length;
-    if (!n) { body.innerHTML = '<div class="empty">No items yet.</div>'; return; }
+    const R = S.results;
+    if (!S.items.length) { body.innerHTML = '<div class="empty">No items yet.</div>'; return; }
     if (!R.voters) { body.innerHTML = '<div class="empty">No votes yet. Be the first!</div>'; return; }
-    body.innerHTML =
-      '<div class="meta"><span>' + R.voters + ' ' + (R.voters === 1 ? 'person has' : 'people have') + ' voted</span><span>Points: #1 = ' + (n - 1) + ', last = 0</span></div>' +
-      '<div class="res">' + R.rows.map(r =>
-        '<div class="r"><span class="rk">' + r.rank + '</span><span class="nm">' + esc(r.text) + '</span>' +
-        '<span class="sc">' + r.points + ' pts' + (r.avgPosition ? ' · avg #' + r.avgPosition.toFixed(1) : '') + (r.firsts ? ' · ' + r.firsts + '× first' : '') + '</span>' +
-        '<span class="bar"><i style="width:' + Math.round(r.points / R.maxPoints * 100) + '%"></i></span></div>').join('') + '</div>';
+    body.innerHTML = resultsHtml(R);
+  }
+
+  function resultsHtml(R){
+    return '<div class="meta"><span>' + R.voters + ' ' + (R.voters === 1 ? 'person has' : 'people have') + ' voted</span>' +
+      '<span>Score 100 = ranked first by everyone who knew it</span></div>' +
+      '<div class="res">' + R.rows.map(r => {
+        const bits = [];
+        bits.push(r.score === null ? 'not ranked yet' : 'score ' + r.score);
+        if (r.rankedBy) bits.push('ranked by ' + r.rankedBy);
+        if (r.unknownBy) bits.push(r.unknownBy + ' don\'t know');
+        if (r.firsts) bits.push(r.firsts + '× first');
+        return '<div class="r"><span class="rk">' + (r.rank ?? '–') + '</span><span class="nm">' + esc(r.text) + '</span>' +
+          '<span class="sc">' + bits.join(' · ') + '</span>' +
+          '<span class="bar"><i style="width:' + (r.score || 0) + '%"></i></span></div>';
+      }).join('') + '</div>';
   }
 
   // Live updates, with a plain fetch first so the page fills in quickly
