@@ -9,7 +9,7 @@ These steps run Rank It on your own Docker server and publish it through your Cl
 3. Reference: `refs/heads/main`.
 4. **Compose path:** `deploy/docker/docker-compose.yml`
 5. **Environment variables** (all optional):
-   - `VOTE_URL`: the public voting link, e.g. `https://rankit-vote.locar.fyi`. It's shown on the manage page with a Copy button.
+   - `VOTE_URL`: the vote site's public address, e.g. `https://rankit-vote.locar.fyi`. It's needed for each poll's full link and QR code.
    - `VOTE_HOST_PORT` (default 8092) and `MANAGE_HOST_PORT` (default 8093). Change them if those ports are already used on the server.
 6. Deploy the stack. Portainer builds the image from the repo's `Dockerfile`.
 
@@ -49,10 +49,14 @@ The manage port has no login of its own, so anyone on your home network who know
 
 ## How voting works
 
-- Each browser gets a random voter id in a cookie, so people can come back and change their ranking.
-- That's one ranking per browser. It stops casual double-voting, but someone could vote again from a private window or another device.
-- Voters can mark any item **Don't know**, but must rank at least 2 items.
-- On each ballot the top item scores 100, the bottom item 0, and the rest are spread evenly between. An item's score is the average over the people who ranked it, so "Don't know" counts neither for nor against it. Check the "ranked by" count, because an item only a few people ranked can score high or low on very few votes.
+- Every poll has its own link (`/p/<id>`) and a 4-digit code. People can type the code on the vote site's home page. Draft polls can't be found until you open voting.
+- To slow down anyone guessing codes, each address can try 20 codes a minute.
+- Each browser gets a random voter id in a cookie, so people can come back and adjust their answers. That's one response per browser: it stops casual double-voting, but someone could answer again from a private window or another device.
+- Timers are kept on the server. A poll closes on time even if nobody has it open, and a running timer carries on after a restart or redeploy.
+
+## Upgrading from the single-list version
+
+The first time the new version starts, it turns your existing list and its votes into a poll with one ranking question. It keeps a copy of the old data as `db.v1-backup.json` in the same volume. That poll gets a new link and code, so the old voting link now opens the code-entry page. Share the poll's new link or code.
 
 ## Backups
 

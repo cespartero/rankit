@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Report — Rank It</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/common.css">
+<style>
+  /* reports are always light, so they print the same way they look */
+  :root{ --bg:#f6f5f2 !important; --card:#fff !important; --ink:#1d1c1a !important; --muted:#6f6b64 !important; --line:#e4e1da !important; --accent:#c4552d !important; --accent-soft:#f7e3da !important; }
+  body{background:var(--bg);color:var(--ink)}
+  .wrap{max-width:760px}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+  .kicker{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+  .facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:16px 0 20px}
+  .fact{border:1px solid var(--line);border-radius:10px;padding:8px 12px;background:var(--card)}
+  .fact span{display:block;font-size:12px;color:var(--muted)}
+  .fact b{font-size:15px}
+  .summary{margin:0;padding-left:20px}
+  .summary li{margin:4px 0}
+  .interim{background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:14px}
+  footer{color:var(--muted);font-size:12px;margin-top:24px;text-align:center}
+  @media print {
+    @page{margin:14mm}
+    body{background:#fff;font-size:12px}
+    .wrap{max-width:none;padding:0}
+    .toolbar,.ver{display:none}
+    .card{border-color:#ccc;break-inside:avoid;page-break-inside:avoid}
+    .fact{background:#fff}
+    h1{font-size:22px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="toolbar">
+    <button class="btn" id="print">Print / Save as PDF</button>
+    <button class="btn secondary" id="copy">Copy as text</button>
+    <span class="status" id="st"></span>
+  </div>
+  <div id="report"><div class="empty">Loading…</div></div>
+</div>
+<script src="/assets/common.js"></script>
+<script>
+(function(){
+  const { esc, plural, allResults, when, fmtNum } = RK;
+  const $ = id => document.getElementById(id);
+  const id = location.pathname.split('/')[2];
+  let P = null;
+
+  // One-line headline per question
+  function headline(q, r){
+    if (!r || !r.answered) return 'No answers.';
+    if (r.type === 'rank') {
+      const top = r.rows.filter(x => x.rank === 1);
+      return top.length ? 'Top ranked: ' + top.map(x => x.text).join(' and ') + ' (score ' + top[0].score + ').' : 'Not enough rankings yet.';
+    }
+    if (r.type === 'choice') {
+      const top = r.rows.filter(x => x.rank === 1 && x.count);
+      return 'Most picked: ' + top.map(x => x.text).join(' and ') + ' (' + top[0].percent + '%).';
+    }
+    return 'Average ' + fmtNum(r.mean, r.unit) + ', middle ' + fmtNum(r.median, r.unit) + ', range ' + fmtNum(r.min) + ' – ' + fmtNum(r.max, r.unit) + '.';
+  }
+  const findR = q => P.results.questions.find(x => x.id === q.id);
+
+  function render(){
+    document.title = (P.title || 'Poll') + ' — Report';
+    const final = P.status === 'closed';
+    $('report').innerHTML =
+      '<div class="kicker">' + (final ? 'Final results' : P.status === 'open' ? 'Interim results' : 'Draft poll') + '</div>' +
+      '<h1>' + esc(P.title || 'Untitled poll') + '</h1>' + (P.subtitle ? '<p class="sub" style="margin:4px 0 0">' + esc(P.subtitle) + '</p>' : '') +
+      '<div class="facts">' +
+        '<div class="fact"><span>Responses</span><b>' + P.results.respondents + '</b></div>' +
+        '<div class="fact"><span>Opened</span><b>' + (P.openedAt ? when(P.openedAt) : '—') + '</b></div>' +
+        '<div class="fact"><span>' + (final ? 'Closed' : 'Closes') + '</span><b>' + (final ? when(P.closedAt) : P.closesAt ? when(P.closesAt) : 'No time limit') + '</b></div>' +
+        '<div class="fact"><span>Code</span><b>' + P.code + '</b></div>' +
+      '</div>' +
+      (final ? '' : '<div class="interim">Voting is still ' + (P.status === 'open' ? 'open' : 'not open') + ', so these results may change. This page updates live.</div>') +
+      '<section class="card" style="margin-bottom:14px"><h2>Summary</h2><ol class="summary">' +
+        P.questions.map(q => '<li><b>' + esc(q.text || 'Question') + '</b> — ' + esc(headline(q, findR(q))) + '</li>').join('') + '</ol></section>' +
+      '<div class="stack">' + allResults(P, P.results) + '</div>' +
+      '<footer>Report created ' + when(new Date().toISOString()) + ' · Rank It' + (window.APP_VERSION ? ' ' + esc(window.APP_VERSION) : '') + '</footer>';
+  }
+
+  function asText(){
+    const lines = [(P.title || 'Poll') + (P.status === 'closed' ? ' — final results' : ' — interim results'), plural(P.results.respondents, 'response', 'responses'), ''];
+    P.questions.forEach((q, i) => {
+      const r = findR(q);
+      lines.push((i + 1) + '. ' + (q.text || 'Question'));
+      if (!r || !r.answered) lines.push('   No answers.');
+      else if (r.type === 'rank') r.rows.forEach(x => lines.push('   ' + (x.rank ?? '–') + '. ' + x.text + ' — ' + (x.score === null ? 'not ranked' : 'score ' + x.score) + ', ranked by ' + x.rankedBy + (x.unknownBy ? ', ' + x.unknownBy + " don't know" : '')));
+      else if (r.type === 'choice') r.rows.forEach(x => lines.push('   ' + x.text + ' — ' + plural(x.count, 'vote', 'votes') + ' (' + x.percent + '%)'));
+      else lines.push('   ' + headline(q, r) + ' ' + plural(r.answered, 'answer', 'answers') + '.');
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
+
+  $('print').onclick = () => window.print();
+  $('copy').onclick = async () => {
+    try { await navigator.clipboard.writeText(asText()); $('st').textContent = '✓ Copied'; $('st').className = 'status ok'; }
+    catch (_) { $('st').textContent = 'Copy failed.'; $('st').className = 'status err'; }
+  };
+
+  async function load(){
+    const r = await fetch('/api/polls/' + id);
+    if (!r.ok) { $('report').innerHTML = '<div class="card empty">Poll not found.</div>'; return false; }
+    P = await r.json(); render(); return true;
+  }
+  load().then(ok => {
+    if (!ok) return;
+    const es = new EventSource('/api/events');
+    es.addEventListener('state', ev => { if (JSON.parse(ev.data).changed === id) load(); });
+  });
+})();
+</script>
+</body>
+</html>

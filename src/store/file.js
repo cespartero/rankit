@@ -25,6 +25,12 @@ function createFileStore(dataDir) {
       }
     },
 
+    // keep a one-off copy of the data, e.g. before converting it to a new format (never overwrites)
+    async backup(name, data) {
+      const dest = path.join(dataDir, name);
+      if (!fs.existsSync(dest)) await fs.promises.writeFile(dest, JSON.stringify(data));
+    },
+
     // write to a temp file then rename, so a crash mid-write never leaves a half-written file
     async save(db) {
       const tmp = `${file}.tmp`;
