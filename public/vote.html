@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rank It</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#f6f5f2; --card:#fff; --ink:#1d1c1a; --muted:#6f6b64; --line:#e4e1da; --accent:#c4552d; --accent-soft:#f7e3da; --good:#2f7a4f; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#171614; --card:#211f1c; --ink:#f0ede7; --muted:#a29d94; --line:#36332e; --accent:#e27650; --accent-soft:#3a2720; --good:#5fb383; } }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif}
+  .wrap{max-width:640px;margin:0 auto;padding:28px 18px 60px}
+  h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+  .sub{color:var(--muted);margin:0 0 22px}
+  .tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:18px}
+  .tab{flex:1;border:0;background:none;padding:10px;border-radius:9px;font:600 14px Inter,sans-serif;color:var(--muted);cursor:pointer}
+  .tab.on{background:var(--accent-soft);color:var(--accent)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .hint{color:var(--muted);font-size:13px;margin:0 0 12px}
+  ol.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 10px 10px 4px;user-select:none;-webkit-user-select:none}
+  .item.new{border-color:var(--accent)}
+  .item.dragging{box-shadow:0 8px 22px rgba(0,0,0,.18);position:relative;z-index:2;background:var(--card)}
+  .grip{cursor:grab;color:var(--muted);padding:8px 8px;font-size:18px;line-height:1;touch-action:none}
+  .pos{font-weight:700;width:24px;text-align:center;color:var(--accent)}
+  .txt{flex:1;word-break:break-word}
+  .tag{font-size:11px;font-weight:600;color:var(--accent);margin-left:6px}
+  .btns{display:flex;gap:4px}
+  .btns button{border:1px solid var(--line);background:var(--card);color:var(--ink);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:13px}
+  .btns button:disabled{opacity:.3;cursor:default}
+  .row{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .btn{border:0;background:var(--accent);color:#fff;font:600 14px Inter,sans-serif;padding:11px 18px;border-radius:10px;cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:default}
+  .status{font-size:13px;color:var(--muted)}
+  .status.ok{color:var(--good)} .status.err{color:var(--accent)}
+  .res{display:flex;flex-direction:column;gap:12px}
+  .r{display:grid;grid-template-columns:30px 1fr auto;gap:4px 10px;align-items:center}
+  .rk{font-weight:700;font-size:17px;color:var(--accent);text-align:center}
+  .nm{font-weight:500}
+  .sc{font-size:13px;color:var(--muted);text-align:right;white-space:nowrap}
+  .bar{grid-column:2/4;height:8px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
+  .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-bottom:14px}
+  .empty{color:var(--muted);text-align:center;padding:24px 8px}
+  .banner{background:var(--accent-soft);color:var(--accent);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:12px}
+  .note{background:var(--accent-soft);color:var(--ink);border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:10px}
+  .hidden{display:none}
+  .ver{color:var(--muted);font-size:11px;text-align:center;margin-top:28px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">Rank It</h1>
+  <p class="sub" id="subtitle">Drag the items into your order — #1 is your favourite.</p>
+
+  <div class="tabs">
+    <button class="tab on" data-tab="vote">Your ranking</button>
+    <button class="tab" data-tab="results">Results</button>
+  </div>
+
+  <section id="vote" class="card"><div id="voteBody"><div class="empty">Loading…</div></div></section>
+  <section id="results" class="card hidden"><div id="resBody"><div class="empty">Loading…</div></div></section>
+  <div class="ver" id="ver"></div>
+</div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  $('ver').textContent = 'Version ' + (window.APP_VERSION || 'dev');
+
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === t));
+    $('vote').classList.toggle('hidden', t.dataset.tab !== 'vote');
+    $('results').classList.toggle('hidden', t.dataset.tab !== 'results');
+  });
+
+  let S = null;          // latest state from the server
+  let order = null;      // working order (item ids)
+  let dirty = false;
+  let saving = false;
+  let msg = null;        // {text, cls}
+  let dragging = false;
+
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const textOf = id => (S.items.find(i => i.id === id) || {}).text || '';
+  const ids = () => S.items.map(i => i.id);
+  const unranked = () => S.myOrder ? ids().filter(id => !S.myOrder.includes(id)) : [];
+
+  function reconcile(){
+    const all = ids();
+    if (dirty && order) { order = order.filter(id => all.includes(id)).concat(all.filter(id => !order.includes(id))); return; }
+    if (S.myOrder) { order = S.myOrder.concat(all.filter(id => !S.myOrder.includes(id))); return; }
+    if (!order || order.length !== all.length || order.some(id => !all.includes(id))) order = shuffle(all); // random start avoids bias
+  }
+
+  function apply(next){
+    S = next;
+    document.title = S.title || 'Rank It';
+    $('title').textContent = S.title || 'Rank It';
+    $('subtitle').textContent = S.subtitle || 'Drag the items into your order — #1 is your favourite.';
+    reconcile();
+    if (!dragging) renderVote();
+    renderResults();
+  }
+
+  function renderVote(){
+    const body = $('voteBody');
+    if (!S.items.length) { body.innerHTML = '<div class="empty">No items to rank yet. Check back soon.</div>'; return; }
+    const closed = !S.open;
+    const fresh = unranked();
+    let status = '';
+    if (msg) status = '<span class="status ' + msg.cls + '">' + esc(msg.text) + '</span>';
+    else if (closed) status = '';
+    else if (dirty) status = '<span class="status">Unsaved changes</span>';
+    else if (S.myOrder && fresh.length) status = '<span class="status">New items were added — place them and save again.</span>';
+    else if (S.myOrder) status = '<span class="status ok">✓ Your ranking is saved.</span>';
+    const canSave = !closed && !saving && (dirty || !S.myOrder || fresh.length);
+
+    body.innerHTML =
+      (closed ? '<div class="banner">Voting is closed.' + (S.myOrder ? ' Your ranking is shown below.' : '') + '</div>'
+        : S.myOrder
+          ? '<div class="note">This is your saved ranking. You can come back any time and adjust your vote.</div>'
+          : '<div class="note">This list is in a random order until you vote. After voting, you can come back and adjust your vote.</div>') +
+      (closed ? '' : '<p class="hint">Drag with the handle ⋮⋮, or use the arrows.</p>') +
+      '<ol class="list" id="list">' + order.map((id, i) =>
+        '<li class="item' + (fresh.includes(id) ? ' new' : '') + '" data-id="' + esc(id) + '">' +
+          '<span class="grip" aria-hidden="true"' + (closed ? ' style="visibility:hidden"' : '') + '>⋮⋮</span>' +
+          '<span class="pos">' + (i + 1) + '</span>' +
+          '<span class="txt">' + esc(textOf(id)) + (fresh.includes(id) ? '<span class="tag">NEW</span>' : '') + '</span>' +
+          (closed ? '' : '<span class="btns">' +
+            '<button aria-label="Move up" data-mv="-1"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+            '<button aria-label="Move down" data-mv="1"' + (i === order.length - 1 ? ' disabled' : '') + '>▼</button>' +
+          '</span>') +
+        '</li>').join('') + '</ol>' +
+      (closed ? '' : '<div class="row"><button class="btn" id="save"' + (canSave ? '' : ' disabled') + '>' +
+        (saving ? 'Saving…' : S.myOrder ? 'Update my ranking' : 'Submit my ranking') + '</button>' + status + '</div>');
+
+    if (closed) return;
+    const list = $('list');
+    list.querySelectorAll('button[data-mv]').forEach(b => b.onclick = () => {
+      const id = b.closest('.item').dataset.id;
+      const i = order.indexOf(id), j = i + Number(b.dataset.mv);
+      [order[i], order[j]] = [order[j], order[i]];
+      dirty = true; msg = null; renderVote();
+    });
+    list.querySelectorAll('.grip').forEach(g => g.addEventListener('pointerdown', startDrag));
+    $('save').onclick = save;
+  }
+
+  // Simple pointer drag (works with mouse and touch)
+  function startDrag(e){
+    e.preventDefault();
+    const li = e.target.closest('.item'), list = li.parentNode;
+    dragging = true;
+    li.classList.add('dragging');
+    // listen on the window: moving the item in the page would drop a pointer capture on it
+    const move = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      ev.preventDefault();
+      const y = ev.clientY;
+      const others = [...list.children].filter(x => x !== li);
+      let before = null;
+      for (const o of others) { const r = o.getBoundingClientRect(); if (y < r.top + r.height / 2) { before = o; break; } }
+      if (before !== li.nextSibling) list.insertBefore(li, before);
+      [...list.children].forEach((x, i) => x.querySelector('.pos').textContent = i + 1);
+    };
+    const end = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+      dragging = false;
+      const next = [...list.children].map(x => x.dataset.id);
+      if (next.join() !== order.join()) { order = next; dirty = true; msg = null; }
+      renderVote();
+    };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+  }
+
+  async function save(){
+    saving = true; msg = null; renderVote();
+    try {
+      const r = await fetch('/api/ballot', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order }) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Could not save.');
+      dirty = false; msg = null;
+      saving = false;
+      apply(data);
+    } catch (err) {
+      saving = false; msg = { text: err.message || 'Could not save — try again.', cls: 'err' }; renderVote();
+    }
+  }
+
+  function renderResults(){
+    const body = $('resBody');
+    if (!S.results) {
+      body.innerHTML = '<div class="empty">' + (S.resultsMode === 'hidden'
+        ? 'Results will be shared once voting is finished.'
+        : 'Submit your ranking to see the results.') + '<br><span class="status">' + S.voters + ' ' + (S.voters === 1 ? 'person has' : 'people have') + ' voted so far.</span></div>';
+      return;
+    }
+    const R = S.results, n = S.items.length;
+    if (!n) { body.innerHTML = '<div class="empty">No items yet.</div>'; return; }
+    if (!R.voters) { body.innerHTML = '<div class="empty">No votes yet. Be the first!</div>'; return; }
+    body.innerHTML =
+      '<div class="meta"><span>' + R.voters + ' ' + (R.voters === 1 ? 'person has' : 'people have') + ' voted</span><span>Points: #1 = ' + (n - 1) + ', last = 0</span></div>' +
+      '<div class="res">' + R.rows.map(r =>
+        '<div class="r"><span class="rk">' + r.rank + '</span><span class="nm">' + esc(r.text) + '</span>' +
+        '<span class="sc">' + r.points + ' pts' + (r.avgPosition ? ' · avg #' + r.avgPosition.toFixed(1) : '') + (r.firsts ? ' · ' + r.firsts + '× first' : '') + '</span>' +
+        '<span class="bar"><i style="width:' + Math.round(r.points / R.maxPoints * 100) + '%"></i></span></div>').join('') + '</div>';
+  }
+
+  // Live updates, with a plain fetch first so the page fills in quickly
+  fetch('/api/state').then(r => r.json()).then(apply).catch(() => {});
+  const es = new EventSource('/api/events');
+  es.addEventListener('state', ev => apply(JSON.parse(ev.data)));
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+# Stamps the app version on every push to main: <date of the push>-<number of pushes that day>,
+# e.g. 2026.11.11-2. The app shows it at the bottom of each page.
+# The stamp is saved as a small "Stamp version" commit. Commits made with GITHUB_TOKEN
+# don't trigger workflows, so this doesn't loop.
+name: Stamp version
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: stamp-version
+  cancel-in-progress: false
+
+jobs:
+  stamp:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Update public/version.json
+        id: stamp
+        run: echo "version=$(node scripts/stamp-version.js)" >> "$GITHUB_OUTPUT"
+
+      - name: Commit the new version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/version.json
+          git commit -m "Stamp version ${{ steps.stamp.outputs.version }} [skip ci]"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          exit 1

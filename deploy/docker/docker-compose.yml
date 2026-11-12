@@ -1,0 +1,21 @@
+# Local Docker deployment (e.g. a Portainer stack pulled from this Git repo).
+name: rankit
+# In Portainer: Stacks -> Add stack -> Repository, Compose path: deploy/docker/docker-compose.yml
+services:
+  rankit:
+    build:
+      context: ../..          # repo root, where the Dockerfile lives
+    image: rankit:latest
+    pull_policy: build        # always build from this repo; never try to download the image from Docker Hub
+    container_name: rankit
+    restart: unless-stopped
+    environment:
+      VOTE_URL: ${VOTE_URL:-}              # optional: public voting link, shown on the manage page
+    ports:
+      - "${VOTE_HOST_PORT:-8092}:8080"     # vote site   (public)
+      - "${MANAGE_HOST_PORT:-8093}:8081"   # manage site (put behind Cloudflare Access)
+    volumes:
+      - rankit-data:/data
+
+volumes:
+  rankit-data:
