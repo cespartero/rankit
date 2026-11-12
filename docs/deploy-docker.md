@@ -11,6 +11,7 @@ These steps run Rank It on your own Docker server and publish it through your Cl
 5. **Environment variables** (all optional):
    - `VOTE_URL`: the vote site's public address, e.g. `https://rankit-vote.locar.fyi`. It's needed for each poll's full link and QR code.
    - `VOTE_HOST_PORT` (default 8092) and `MANAGE_HOST_PORT` (default 8093). Change them if those ports are already used on the server.
+   - `STACK_NAME` (default `rankit`): only needed to run a second copy, such as a test stack. It sets the container, image and data volume names so the two copies don't clash.
 6. Deploy the stack. Portainer builds the image from the repo's `Dockerfile`.
 
 Check it's running:
