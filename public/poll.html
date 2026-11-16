@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rank It</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/common.css">
+<style>
+  .qhead{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:8px}
+  .qhead h2{margin:0}
+  .opt{font-size:12px;color:var(--muted);font-weight:500}
+  ol.list,ul.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 8px 8px 2px;user-select:none;-webkit-user-select:none}
+  .item.dragging{box-shadow:0 8px 22px rgba(0,0,0,.18);position:relative;z-index:2;background:var(--card)}
+  .item.muted{opacity:.75;padding-left:12px}
+  .item.muted .txt{color:var(--muted)}
+  .grip{cursor:grab;color:var(--muted);padding:8px;font-size:18px;line-height:1;touch-action:none}
+  .pos{font-weight:700;width:22px;text-align:center;color:var(--accent)}
+  .txt{flex:1 1 130px;min-width:0;overflow-wrap:break-word}
+  .btns{margin-left:auto}
+  .btns{display:flex;gap:4px}
+  .btns button{border:1px solid var(--line);background:var(--card);color:var(--ink);min-width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:13px}
+  .btns button:disabled{opacity:.3;cursor:default}
+  .btns .dk{padding:0 8px;font:500 12px Inter,sans-serif;color:var(--muted)}
+  .dkhead{font-weight:600;font-size:14px;margin:16px 0 8px}
+  .choices{display:flex;flex-direction:column;gap:8px}
+  .choice{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:15px Inter,sans-serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;cursor:pointer}
+  .choice .mark{width:22px;height:22px;border:2px solid var(--muted);flex:none;display:grid;place-items:center;font-size:13px;color:#fff}
+  .choice.single .mark{border-radius:50%}
+  .choice.multi .mark{border-radius:6px}
+  .choice.on{border-color:var(--accent);background:var(--accent-soft)}
+  .choice.on .mark{background:var(--accent);border-color:var(--accent)}
+  .choice:disabled{cursor:default}
+  .scale{display:flex;flex-wrap:wrap;gap:6px}
+  .scale button{min-width:46px;height:46px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;font:600 16px Inter,sans-serif;cursor:pointer}
+  .scale button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .scale-ends{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+  .numrow{display:flex;align-items:center;gap:10px}
+  .numrow input{max-width:180px;font-size:18px}
+  .timer{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:14px}
+  .timer b{font-variant-numeric:tabular-nums}
+  .footer{position:sticky;bottom:0;background:linear-gradient(transparent,var(--bg) 30%);padding:18px 0 8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="title">Rank It</h1>
+  <p class="sub" id="subtitle"></p>
+  <div id="timer" class="timer hidden"></div>
+  <div class="tabs hidden" id="tabs">
+    <button class="tab on" data-tab="answer">Your answers</button>
+    <button class="tab" data-tab="results">Results</button>
+  </div>
+  <div id="answer"><div class="empty">Loading…</div></div>
+  <div id="results" class="stack hidden"></div>
+  <div class="ver" id="ver"></div>
+</div>
+
+<script src="/assets/common.js"></script>
+<script>
+(function(){
+  const { esc, plural, typeLabel, allResults, countdown } = RK;
+  const $ = id => document.getElementById(id);
+  $('ver').textContent = 'Version ' + (window.APP_VERSION || 'dev');
+  const pollId = location.pathname.split('/')[2];
+
+  let S = null;            // latest poll view from the server
+  let draft = {};          // qid -> answer being edited
+  let dirty = false, saving = false, msg = null, dragging = false;
+  let shownKey = '';       // what the question cards were last drawn from
+  let clockOffset = 0;     // server time - this device's time
+  let tab = 'answer';
+
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  const isOpen = () => S && S.status === 'open' && (!S.closesAt || Date.parse(S.closesAt) > Date.now() + clockOffset);
+  const voted = () => !!(S && S.myAnswers);
+
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => showTab(t.dataset.tab));
+  function showTab(name){
+    tab = name;
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x.dataset.tab === name));
+    $('answer').classList.toggle('hidden', name !== 'answer');
+    $('results').classList.toggle('hidden', name !== 'results');
+  }
+
+  // ---------- keep the draft in step with the poll ----------
+  function startAnswer(q, saved){
+    const ids = (q.options || []).map(o => o.id);
+    if (q.type === 'rank') {
+      if (saved && saved.order) {
+        const unknown = (saved.unknown || []).filter(id => ids.includes(id));
+        const order = saved.order.filter(id => ids.includes(id));
+        return { order: order.concat(ids.filter(id => !order.includes(id) && !unknown.includes(id))), unknown, fresh: ids.filter(id => !order.includes(id) && !unknown.includes(id)) };
+      }
+      return { order: shuffle(ids), unknown: [], fresh: [] }; // random start avoids bias
+    }
+    if (q.type === 'choice') return { selected: saved && saved.selected ? saved.selected.filter(id => ids.includes(id)) : [] };
+    return { value: saved && saved.value !== undefined ? saved.value : null };
+  }
+  function syncDraft(){
+    const next = {};
+    for (const q of S.questions) {
+      const cur = draft[q.id], saved = S.myAnswers && S.myAnswers[q.id];
+      if (dirty && cur && cur.type === q.type) {
+        const ids = (q.options || []).map(o => o.id);
+        if (q.type === 'rank') {
+          const unknown = cur.unknown.filter(id => ids.includes(id));
+          next[q.id] = { order: cur.order.filter(id => ids.includes(id)).concat(ids.filter(id => !cur.order.includes(id) && !unknown.includes(id))), unknown, fresh: cur.fresh || [] };
+        } else if (q.type === 'choice') next[q.id] = { selected: cur.selected.filter(id => ids.includes(id)) };
+        else next[q.id] = { value: cur.value };
+      } else if (!dirty && !voted() && cur && cur.type === q.type && q.type === 'rank' && sameSet(cur.order.concat(cur.unknown), q.options.map(o => o.id))) {
+        next[q.id] = cur; // keep this visit's random order until they vote
+      } else next[q.id] = startAnswer(q, saved);
+      next[q.id].type = q.type;
+    }
+    draft = next;
+  }
+  const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+
+  // ---------- render ----------
+  function apply(next){
+    if (next.deleted) { S = null; $('answer').innerHTML = '<div class="card empty">This poll has been removed.</div>'; $('results').innerHTML = ''; $('tabs').classList.add('hidden'); return; }
+    S = next;
+    if (S.serverNow) clockOffset = Date.parse(S.serverNow) - Date.now();
+    document.title = S.title || 'Rank It';
+    $('title').textContent = S.title || 'Rank It';
+    $('subtitle').textContent = S.subtitle || '';
+    if (S.status === 'draft') {
+      $('answer').innerHTML = '<div class="card empty">This poll isn\'t open yet. Keep this page open — it will appear here when voting starts.</div>';
+      $('tabs').classList.add('hidden'); $('timer').classList.add('hidden'); $('results').innerHTML = '';
+      return;
+    }
+    $('tabs').classList.remove('hidden');
+    syncDraft();
+    const key = JSON.stringify([S.questions, S.status, S.closesAt, dirty ? 'd' : S.myAnswers]);
+    if (key !== shownKey && !dragging) { shownKey = key; renderQuestions(); } else renderFooter();
+    renderResults();
+    tick();
+  }
+
+  function renderQuestions(){
+    const open = isOpen();
+    const anyRank = S.questions.some(q => q.type === 'rank');
+    let top = '';
+    if (!open) top = '<div class="note">This poll is closed.' + (voted() ? ' Your answers are shown below.' : '') + '</div>';
+    else if (voted()) top = '<div class="note">These are your saved answers. You can come back any time before the poll closes and adjust them.</div>';
+    else top = '<div class="note">' + (anyRank ? 'Ranking lists are in a random order until you vote. ' : '') + 'After voting, you can come back and adjust your answers.</div>';
+
+    $('answer').innerHTML = '<div class="stack">' + top + S.questions.map((q, i) =>
+      '<section class="card" data-q="' + esc(q.id) + '">' +
+        '<div class="qhead"><h2>' + (S.questions.length > 1 ? (i + 1) + '. ' : '') + esc(q.text || 'Question ' + (i + 1)) + '</h2>' +
+        (q.required ? '' : '<span class="opt">Optional</span>') + '</div>' +
+        questionBody(q, open) +
+      '</section>').join('') +
+      (open ? '<div class="footer row" id="footer"></div>' : '') + '</div>';
+    wire(open);
+    renderFooter();
+    if (!open && S.results && tab === 'answer' && !voted()) showTab('results');
+  }
+
+  function questionBody(q, open){
+    const d = draft[q.id];
+    if (q.type === 'rank') {
+      const text = id => esc((q.options.find(o => o.id === id) || {}).text);
+      return (open ? '<p class="hint">Drag with ⋮⋮ or use the arrows. Tap <b>Don\'t know</b> for anything you can\'t judge — it won\'t count for or against it.</p>' : '') +
+        '<ol class="list rank">' + d.order.map((id, i) =>
+          '<li class="item" data-id="' + esc(id) + '">' +
+            '<span class="grip" aria-hidden="true"' + (open ? '' : ' style="visibility:hidden"') + '>⋮⋮</span>' +
+            '<span class="pos">' + (i + 1) + '</span><span class="txt">' + text(id) +
+            (d.fresh && d.fresh.includes(id) ? ' <span class="pill draft">NEW</span>' : '') + '</span>' +
+            (open ? '<span class="btns"><button aria-label="Move up" data-mv="-1"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+              '<button aria-label="Move down" data-mv="1"' + (i === d.order.length - 1 ? ' disabled' : '') + '>▼</button>' +
+              '<button class="dk" data-dk aria-label="I don\'t know ' + text(id) + '">Don\'t know</button></span>' : '') +
+          '</li>').join('') + '</ol>' +
+        (d.unknown.length ? '<div class="dkhead">I don\'t know these <span class="status">— not counted</span></div><ul class="list">' +
+          d.unknown.map(id => '<li class="item muted" data-id="' + esc(id) + '"><span class="txt">' + text(id) + '</span>' +
+            (open ? '<span class="btns"><button class="dk" data-rk aria-label="Rank ' + text(id) + '">Rank it</button></span>' : '') + '</li>').join('') + '</ul>' : '');
+    }
+    if (q.type === 'choice') {
+      return '<p class="hint">' + (q.multi ? 'Pick as many as you like.' : 'Pick one.') + '</p><div class="choices">' + q.options.map(o => {
+        const on = d.selected.includes(o.id);
+        return '<button class="choice ' + (q.multi ? 'multi' : 'single') + (on ? ' on' : '') + '" data-opt="' + esc(o.id) + '" role="' + (q.multi ? 'checkbox' : 'radio') + '" aria-checked="' + on + '"' + (open ? '' : ' disabled') + '>' +
+          '<span class="mark">' + (on ? '✓' : '') + '</span><span>' + esc(o.text) + '</span></button>';
+      }).join('') + '</div>';
+    }
+    // number
+    const hasRange = q.min !== null && q.max !== null;
+    const steps = hasRange ? Math.round((q.max - q.min) / q.step) + 1 : Infinity;
+    if (steps <= 11) {
+      const vals = Array.from({ length: steps }, (_, i) => Math.round((q.min + i * q.step) * 1e6) / 1e6);
+      return '<div class="scale" role="radiogroup">' + vals.map(v =>
+        '<button data-val="' + v + '" class="' + (d.value === v ? 'on' : '') + '" role="radio" aria-checked="' + (d.value === v) + '"' + (open ? '' : ' disabled') + '>' + v + '</button>').join('') +
+        '</div><div class="scale-ends"><span>' + q.min + (q.unit ? ' ' + esc(q.unit) : '') + '</span><span>' + q.max + (q.unit ? ' ' + esc(q.unit) : '') + '</span></div>';
+    }
+    const range = hasRange ? 'From ' + q.min + ' to ' + q.max + '.' : q.min !== null ? 'At least ' + q.min + '.' : q.max !== null ? 'Up to ' + q.max + '.' : '';
+    return (range ? '<p class="hint">' + range + '</p>' : '') + '<div class="numrow"><input type="number" inputmode="decimal" data-num' +
+      (q.min !== null ? ' min="' + q.min + '"' : '') + (q.max !== null ? ' max="' + q.max + '"' : '') + ' step="' + q.step + '"' +
+      ' value="' + (d.value ?? '') + '"' + (open ? '' : ' disabled') + ' aria-label="' + esc(q.text || 'Number') + '">' +
+      (q.unit ? '<span>' + esc(q.unit) + '</span>' : '') + '</div>';
+  }
+
+  function change(qid, rerender = true){
+    dirty = true; msg = null;
+    if (rerender) { shownKey = ''; renderQuestions(); } else renderFooter();
+  }
+
+  function wire(open){
+    if (!open) return;
+    $('answer').querySelectorAll('section[data-q]').forEach(sec => {
+      const qid = sec.dataset.q, q = S.questions.find(x => x.id === qid), d = draft[qid];
+      sec.querySelectorAll('button[data-mv]').forEach(b => b.onclick = () => {
+        const id = b.closest('.item').dataset.id, i = d.order.indexOf(id), j = i + Number(b.dataset.mv);
+        [d.order[i], d.order[j]] = [d.order[j], d.order[i]]; change(qid);
+      });
+      sec.querySelectorAll('button[data-dk]').forEach(b => b.onclick = () => {
+        const id = b.closest('.item').dataset.id; d.order = d.order.filter(x => x !== id); d.unknown.push(id); change(qid);
+      });
+      sec.querySelectorAll('button[data-rk]').forEach(b => b.onclick = () => {
+        const id = b.closest('.item').dataset.id; d.unknown = d.unknown.filter(x => x !== id); d.order.push(id); change(qid);
+      });
+      sec.querySelectorAll('.rank .grip').forEach(g => g.addEventListener('pointerdown', e => startDrag(e, d, qid)));
+      sec.querySelectorAll('button[data-opt]').forEach(b => b.onclick = () => {
+        const id = b.dataset.opt;
+        if (q.multi) d.selected = d.selected.includes(id) ? d.selected.filter(x => x !== id) : d.selected.concat(id);
+        else d.selected = d.selected.includes(id) && !q.required ? [] : [id];
+        change(qid);
+      });
+      sec.querySelectorAll('button[data-val]').forEach(b => b.onclick = () => {
+        const v = Number(b.dataset.val);
+        d.value = d.value === v && !q.required ? null : v; change(qid);
+      });
+      const inp = sec.querySelector('input[data-num]');
+      if (inp) inp.addEventListener('input', () => { d.value = inp.value === '' ? null : Number(inp.value); change(qid, false); });
+    });
+  }
+
+  // Pointer drag (mouse and touch). Listens on the window: moving the item would drop a pointer capture.
+  function startDrag(e, d, qid){
+    e.preventDefault();
+    const li = e.target.closest('.item'), list = li.parentNode;
+    dragging = true; li.classList.add('dragging');
+    const move = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      ev.preventDefault();
+      let before = null;
+      for (const o of [...list.children].filter(x => x !== li)) { const r = o.getBoundingClientRect(); if (ev.clientY < r.top + r.height / 2) { before = o; break; } }
+      if (before !== li.nextSibling) list.insertBefore(li, before);
+      [...list.children].forEach((x, i) => x.querySelector('.pos').textContent = i + 1);
+    };
+    const end = ev => {
+      if (ev.pointerId !== e.pointerId) return;
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', end); window.removeEventListener('pointercancel', end);
+      dragging = false;
+      const next = [...list.children].map(x => x.dataset.id);
+      if (next.join() !== d.order.join()) { d.order = next; change(qid); } else { shownKey = ''; renderQuestions(); }
+    };
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+  }
+
+  // What's missing before they can submit (null when ready)
+  function problem(){
+    for (const [i, q] of S.questions.entries()) {
+      const d = draft[q.id], n = 'Question ' + (i + 1);
+      if (q.type === 'rank') { if (d.order.length === 1) return n + ': rank at least 2 items, or mark them all "Don\'t know".'; }
+      else if (q.type === 'choice') { if (q.required && !d.selected.length) return n + ': pick ' + (q.multi ? 'at least one option.' : 'an option.'); }
+      else {
+        if (d.value === null || d.value === undefined || Number.isNaN(d.value)) { if (q.required) return n + ': enter a number.'; }
+        else if ((q.min !== null && d.value < q.min) || (q.max !== null && d.value > q.max)) return n + ': enter a number' + (q.min !== null && q.max !== null ? ' from ' + q.min + ' to ' + q.max : q.min !== null ? ' of at least ' + q.min : ' up to ' + q.max) + '.';
+      }
+    }
+    return null;
+  }
+  const freshItems = () => S.questions.some(q => q.type === 'rank' && draft[q.id].fresh && draft[q.id].fresh.length);
+
+  function renderFooter(){
+    const f = $('footer');
+    if (!f || !S) return;
+    const p = problem();
+    let status = '';
+    if (msg) status = '<span class="status ' + msg.cls + '">' + esc(msg.text) + '</span>';
+    else if (p) status = '<span class="status">' + esc(p) + '</span>';
+    else if (dirty) status = '<span class="status">Unsaved changes</span>';
+    else if (voted() && freshItems()) status = '<span class="status">New items were added — place them and save again.</span>';
+    else if (voted()) status = '<span class="status ok">✓ Your answers are saved.</span>';
+    const can = !saving && !p && (dirty || !voted() || freshItems());
+    f.innerHTML = '<button class="btn" id="save"' + (can ? '' : ' disabled') + '>' + (saving ? 'Saving…' : voted() ? 'Update my answers' : 'Submit my answers') + '</button>' + status;
+    $('save').onclick = save;
+  }
+
+  async function save(){
+    saving = true; msg = null; renderFooter();
+    const answers = {};
+    for (const q of S.questions) {
+      const d = draft[q.id];
+      if (q.type === 'rank') answers[q.id] = { order: d.order, unknown: d.unknown };
+      else if (q.type === 'choice') { if (d.selected.length) answers[q.id] = { selected: d.selected }; }
+      else if (d.value !== null && d.value !== undefined && !Number.isNaN(d.value)) answers[q.id] = { value: d.value };
+    }
+    try {
+      const r = await fetch('/api/polls/' + pollId + '/response', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers }) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Could not save.');
+      saving = false; dirty = false; shownKey = '';
+      apply(data);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      saving = false; msg = { text: err.message || 'Could not save — try again.', cls: 'err' }; renderFooter();
+    }
+  }
+
+  function renderResults(){
+    const el = $('results');
+    if (!S.results) {
+      el.innerHTML = '<div class="card empty">' + (S.resultsMode === 'hidden' ? 'Results will be shared once voting is finished.' : 'Submit your answers to see the results.') +
+        '<br><span class="status">' + plural(S.respondents, 'person has', 'people have') + ' answered so far.</span></div>';
+      return;
+    }
+    if (!S.results.respondents) { el.innerHTML = '<div class="card empty">No answers yet. Be the first!</div>'; return; }
+    el.innerHTML = '<div class="status" style="text-align:center">' + plural(S.results.respondents, 'person has', 'people have') + ' answered</div>' + allResults(S, S.results);
+  }
+
+  // Countdown, and a refresh when the timer runs out
+  let wasOpen = null;
+  function tick(){
+    if (!S || S.status === 'draft') return;
+    const open = isOpen();
+    const t = $('timer');
+    if (open && S.closesAt) {
+      t.classList.remove('hidden');
+      t.innerHTML = '⏱ Closes in <b>' + countdown(Date.parse(S.closesAt) - Date.now() - clockOffset) + '</b>';
+    } else if (!open) {
+      t.classList.remove('hidden');
+      t.innerHTML = 'Voting closed' + (S.closedAt ? ' ' + RK.when(S.closedAt) : '');
+    } else t.classList.add('hidden');
+    if (wasOpen === true && !open) { shownKey = ''; renderQuestions(); fetch('/api/polls/' + pollId).then(r => r.json()).then(apply).catch(() => {}); }
+    wasOpen = open;
+  }
+  setInterval(tick, 1000);
+
+  fetch('/api/polls/' + pollId).then(async r => {
+    if (r.status === 404) { $('answer').innerHTML = '<div class="card empty">Poll not found. Check the link, or <a href="/">enter a code</a>.</div>'; return; }
+    apply(await r.json());
+    const es = new EventSource('/api/polls/' + pollId + '/events');
+    es.addEventListener('state', ev => apply(JSON.parse(ev.data)));
+  }).catch(() => { $('answer').innerHTML = '<div class="card empty">Couldn\'t load the poll. Check your connection and refresh.</div>'; });
+})();
+</script>
+</body>
+</html>

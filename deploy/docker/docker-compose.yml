@@ -1,13 +1,13 @@
 # Local Docker deployment (e.g. a Portainer stack pulled from this Git repo).
-name: rankit
+name: ${STACK_NAME:-rankit}   # set STACK_NAME to run a second copy (e.g. a test stack) alongside
 # In Portainer: Stacks -> Add stack -> Repository, Compose path: deploy/docker/docker-compose.yml
 services:
   rankit:
     build:
       context: ../..          # repo root, where the Dockerfile lives
-    image: rankit:latest
+    image: ${STACK_NAME:-rankit}:latest
     pull_policy: build        # always build from this repo; never try to download the image from Docker Hub
-    container_name: rankit
+    container_name: ${STACK_NAME:-rankit}
     restart: unless-stopped
     environment:
       VOTE_URL: ${VOTE_URL:-}              # optional: public voting link, shown on the manage page

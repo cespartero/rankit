@@ -5,102 +5,76 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Rank It — Manage</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/common.css">
 <style>
-  :root{ --bg:#f6f5f2; --card:#fff; --ink:#1d1c1a; --muted:#6f6b64; --line:#e4e1da; --accent:#c4552d; --accent-soft:#f7e3da; --good:#2f7a4f; }
-  @media (prefers-color-scheme: dark){ :root{ --bg:#171614; --card:#211f1c; --ink:#f0ede7; --muted:#a29d94; --line:#36332e; --accent:#e27650; --accent-soft:#3a2720; --good:#5fb383; } }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,sans-serif}
-  .wrap{max-width:720px;margin:0 auto;padding:28px 18px 60px;display:flex;flex-direction:column;gap:16px}
-  h1{font-size:24px;margin:0}
-  h2{font-size:16px;margin:0 0 10px}
-  .badge{display:inline-block;font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px;margin-left:8px;vertical-align:middle}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
-  label{display:block;font-size:13px;font-weight:600;margin:12px 0 6px}
-  label:first-of-type{margin-top:0}
-  input[type=text],textarea,select{width:100%;font:14px/1.5 Inter,sans-serif;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink)}
-  textarea{min-height:200px;resize:vertical}
-  .hint{color:var(--muted);font-size:13px;margin:8px 0 0}
-  .row{display:flex;align-items:center;gap:12px;margin-top:14px;flex-wrap:wrap}
-  .btn{border:0;background:var(--accent);color:#fff;font:600 14px Inter,sans-serif;padding:10px 16px;border-radius:10px;cursor:pointer}
-  .btn.secondary{background:none;color:var(--ink);border:1px solid var(--line)}
-  .btn.danger{background:none;color:var(--accent);border:1px solid var(--accent)}
-  .btn:disabled{opacity:.5;cursor:default}
-  .status{font-size:13px;color:var(--muted)}
-  .status.ok{color:var(--good)} .status.err{color:var(--accent)}
-  .toggle{display:flex;align-items:center;gap:10px;font-weight:500}
-  .toggle input{width:20px;height:20px;accent-color:var(--accent)}
+  .wrap{max-width:820px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:18px}
+  header h1{margin:0}
+  .badge{font-size:12px;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px;margin-left:8px;vertical-align:middle}
+  .polls{display:flex;flex-direction:column;gap:10px}
+  .pollrow{display:flex;justify-content:space-between;gap:12px;align-items:center;cursor:pointer;text-decoration:none;color:inherit}
+  .pollrow:hover{border-color:var(--accent)}
+  .pollrow .t{font-weight:600}
+  .pollrow .m{font-size:13px;color:var(--muted)}
+  .back{color:var(--muted);text-decoration:none;font-size:14px}
+  .share{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start}
+  @media (max-width:600px){ .share{grid-template-columns:1fr} }
+  .codebig{font-size:34px;font-weight:700;letter-spacing:.15em}
+  .qrbox{background:#fff;border-radius:12px;padding:6px;line-height:0;cursor:zoom-in;justify-self:start}
   .link{display:flex;gap:8px}
-  .link input{flex:1}
-  .res{display:flex;flex-direction:column;gap:12px}
-  .r{display:grid;grid-template-columns:30px 1fr;gap:2px 10px;align-items:center}
-  .rk{font-weight:700;font-size:17px;color:var(--accent);text-align:center}
-  .nm{font-weight:500}
-  .sc{grid-column:2;font-size:13px;color:var(--muted)}
-  .bar{grid-column:2;margin-top:4px;height:8px;background:var(--bg);border-radius:6px;overflow:hidden;border:1px solid var(--line)}
-  .bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
-  .meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px;margin-bottom:14px}
-  .empty{color:var(--muted);text-align:center;padding:18px 8px}
-  .hidden{display:none}
-  .ver{color:var(--muted);font-size:11px;text-align:center}
+  .link input{flex:1;font-size:14px}
+  .seg{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+  .seg label{display:flex;align-items:center;gap:8px;font-size:14px;flex-wrap:wrap}
+  .seg input[type=radio]{accent-color:var(--accent);width:18px;height:18px}
+  .inline{display:flex;gap:8px;align-items:center}
+  .inline input[type=number]{width:90px}
+  .inline select{width:auto}
+  .qedit{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)}
+  .qedit .top{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .qedit .top .num{font-weight:700;color:var(--accent)}
+  .qedit .top select{width:auto;background:var(--card)}
+  .qedit .top .sp{flex:1}
+  .qedit input[type=text],.qedit input[type=number],.qedit textarea{background:var(--card)}
+  .qedit textarea{min-height:110px}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  @media (max-width:600px){ .grid4{grid-template-columns:repeat(2,1fr)} }
+  .chk{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:10px}
+  .chk input{accent-color:var(--accent);width:18px;height:18px}
+  .iconbtn{border:1px solid var(--line);background:var(--card);color:var(--ink);width:32px;height:32px;border-radius:8px;cursor:pointer}
+  .iconbtn:disabled{opacity:.3}
+  .warn{background:var(--accent-soft);border-radius:10px;padding:10px 12px;font-size:13px}
+  .overlay{position:fixed;inset:0;background:#fff;color:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;z-index:10;padding:20px;text-align:center}
+  .overlay .big{font-size:min(8vw,56px);font-weight:700}
+  .overlay .code{font-size:min(12vw,96px);font-weight:700;letter-spacing:.15em}
+  .overlay svg{width:min(60vh,80vw);height:auto}
+  .overlay button{position:absolute;top:16px;right:16px}
+  .confirm{display:inline-flex;gap:8px;align-items:center;flex-wrap:wrap}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1><span id="title">Rank It</span><span class="badge">Manage</span></h1>
-
-  <section class="card hidden" id="linkCard">
-    <h2>Voting link</h2>
-    <div class="link"><input type="text" id="voteUrl" readonly><button class="btn secondary" id="copy">Copy</button></div>
-  </section>
-
-  <section class="card">
-    <h2>Results</h2>
-    <div id="resBody"><div class="empty">Loading…</div></div>
-    <div class="row" style="border-top:1px solid var(--line);padding-top:14px">
-      <button class="btn secondary" id="copyRes">Copy results</button>
-      <button class="btn danger" id="clear">Clear all votes</button>
-      <span id="clearConfirm" class="hidden"><span class="status">Clear every vote? This can't be undone.</span>
-        <button class="btn danger" id="clearYes">Yes, clear</button> <button class="btn secondary" id="clearNo">Cancel</button></span>
-      <span class="status" id="resStatus"></span>
-    </div>
-  </section>
-
-  <section class="card">
-    <h2>Settings</h2>
-    <label class="toggle"><input type="checkbox" id="open"> Voting is open</label>
-    <label for="resultsMode">Who can see the results</label>
-    <select id="resultsMode">
-      <option value="always">Everyone, live</option>
-      <option value="after-vote">Only people who have voted</option>
-      <option value="hidden">Nobody yet (only you, here)</option>
-    </select>
-    <div class="row"><span class="status" id="setStatus"></span></div>
-  </section>
-
-  <section class="card">
-    <h2>The list</h2>
-    <label for="aTitle">Title</label>
-    <input type="text" id="aTitle" maxlength="120" placeholder="e.g. Best team name">
-    <label for="aSub">Instructions for voters</label>
-    <input type="text" id="aSub" maxlength="300" placeholder="Drag the items into your order — #1 is your favourite.">
-    <label for="aItems">Items — one per line</label>
-    <textarea id="aItems" placeholder="Item one&#10;Item two&#10;Item three"></textarea>
-    <p class="hint">Changing an item's wording counts as a new item, and removing one drops its votes. People who voted before an item was added are asked to place it next time they visit.</p>
-    <div class="row"><button class="btn" id="saveList">Save list</button><span class="status" id="listStatus"></span></div>
-  </section>
-
+  <header><h1>Rank It<span class="badge">Manage</span></h1><button class="btn" id="newPoll">+ New poll</button></header>
+  <div id="view"><div class="empty">Loading…</div></div>
   <div class="ver" id="ver"></div>
 </div>
+<div id="overlay" class="overlay hidden"></div>
 
+<script src="/assets/common.js"></script>
+<script src="/assets/qr.js"></script>
 <script>
 (function(){
+  const { esc, plural, allResults, countdown, when } = RK;
   const $ = id => document.getElementById(id);
-  const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   $('ver').textContent = 'Version ' + (window.APP_VERSION || 'dev');
-  if (window.VOTE_URL) { $('linkCard').classList.remove('hidden'); $('voteUrl').value = window.VOTE_URL; }
+  const VOTE_URL = window.VOTE_URL || '';
+  const linkFor = id => VOTE_URL + '/p/' + id;
+  const voteHost = () => VOTE_URL ? VOTE_URL.replace(/^https?:\/\//, '') : 'the vote site';
 
-  let S = null, listTouched = false;
-  ['aTitle', 'aSub', 'aItems'].forEach(id => $(id).addEventListener('input', () => { listTouched = true; $('listStatus').textContent = 'Unsaved changes'; $('listStatus').className = 'status'; }));
+  let polls = [];           // summaries
+  let P = null;             // current poll (full)
+  let edit = null, editTouched = false;
+  let clockOffset = 0;
+  let savedAt = 0;          // when questions were last saved, to show "✓ Saved" across redraws
 
   async function api(method, url, body){
     const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
@@ -108,83 +82,283 @@
     if (!r.ok) throw new Error(data.error || 'Request failed (' + r.status + ')');
     return data;
   }
-  const flash = (id, text, cls) => { $(id).textContent = text; $(id).className = 'status ' + (cls || ''); };
+  const flash = (id, text, cls) => { const el = $(id); if (el) { el.textContent = text; el.className = 'status ' + (cls || ''); } };
+  const currentId = () => (location.hash.match(/^#poll-([a-z0-9]+)$/) || [])[1] || null;
+  const statusPill = s => '<span class="pill ' + s.status + '">' + ({ open: 'Open', draft: 'Draft', closed: 'Closed' })[s.status] + '</span>';
+  function alertBox(text){ $('view').insertAdjacentHTML('afterbegin', '<div class="card status err" style="margin-bottom:12px">' + esc(text) + '</div>'); }
 
-  function apply(next){
-    S = next;
-    $('title').textContent = S.title || 'Rank It';
-    document.title = (S.title || 'Rank It') + ' — Manage';
-    $('open').checked = S.open;
-    $('resultsMode').value = S.resultsMode;
-    if (!listTouched) {
-      $('aTitle').value = S.title; $('aSub').value = S.subtitle;
-      $('aItems').value = S.items.map(i => i.text).join('\n');
-    }
-    renderResults();
+  // ---------- routing ----------
+  window.addEventListener('hashchange', route);
+  async function route(){
+    const id = currentId();
+    editTouched = false;
+    if (!id) { P = null; await loadList(); renderList(); return; }
+    try { await loadPoll(id); renderPoll(); window.scrollTo(0, 0); }
+    catch (e) { $('view').innerHTML = '<div class="card empty">That poll no longer exists. <a href="#">Back to all polls</a></div>'; }
+  }
+  async function loadList(){ polls = await api('GET', '/api/polls'); }
+  async function loadPoll(id){
+    P = await api('GET', '/api/polls/' + id);
+    clockOffset = Date.parse(P.serverNow) - Date.now();
+    if (!editTouched) edit = toEdit(P);
   }
 
-  function renderResults(){
-    const R = S.results, body = $('resBody');
-    if (!S.items.length) { body.innerHTML = '<div class="empty">Add your items below to get started.</div>'; return; }
-    if (!R.voters) { body.innerHTML = '<div class="empty">No votes yet.</div>'; return; }
-    body.innerHTML =
-      '<div class="meta"><span>' + R.voters + ' ' + (R.voters === 1 ? 'person has' : 'people have') + ' voted</span>' +
-      '<span>Score 100 = ranked first by everyone who knew it</span></div>' +
-      '<div class="res">' + R.rows.map(r => {
-        const bits = [r.score === null ? 'not ranked yet' : 'score ' + r.score];
-        if (r.rankedBy) bits.push('ranked by ' + r.rankedBy);
-        if (r.unknownBy) bits.push(r.unknownBy + ' don\'t know');
-        if (r.firsts) bits.push(r.firsts + '× first');
-        return '<div class="r"><span class="rk">' + (r.rank ?? '–') + '</span><span class="nm">' + esc(r.text) + '</span>' +
-          '<span class="sc">' + bits.join(' · ') + '</span>' +
-          '<span class="bar"><i style="width:' + (r.score || 0) + '%"></i></span></div>';
-      }).join('') + '</div>' +
-      '<p class="hint">Items only a few people ranked can score high or low on very few votes, so check “ranked by”.</p>';
+  // ---------- list ----------
+  function renderList(){
+    if (!polls.length) { $('view').innerHTML = '<div class="card empty">No polls yet. Press <b>+ New poll</b> to make your first one.</div>'; return; }
+    $('view').innerHTML = '<div class="polls">' + polls.map(s =>
+      '<a class="card pollrow" href="#poll-' + s.id + '"><div><div class="t">' + esc(s.title || 'Untitled poll') + '</div>' +
+      '<div class="m">Code ' + s.code + ' · ' + plural(s.questions, 'question', 'questions') + ' · ' + plural(s.respondents, 'response', 'responses') +
+      (s.status === 'open' && s.closesAt ? ' · closes ' + when(s.closesAt) : '') + '</div></div>' + statusPill(s) + '</a>').join('') + '</div>';
   }
-
-  $('saveList').onclick = async () => {
-    $('saveList').disabled = true; flash('listStatus', 'Saving…');
+  $('newPoll').onclick = async () => {
     try {
-      const items = $('aItems').value.split('\n').map(s => s.trim()).filter(Boolean);
-      listTouched = false;
-      apply(await api('PUT', '/api/list', { title: $('aTitle').value, subtitle: $('aSub').value, items }));
-      flash('listStatus', '✓ Saved (' + S.items.length + ' items)', 'ok');
-    } catch (e) { listTouched = true; flash('listStatus', e.message, 'err'); }
-    $('saveList').disabled = false;
+      const p = await api('POST', '/api/polls', { title: 'Untitled poll', questions: [{ type: 'rank', text: '', options: [] }] });
+      location.hash = '#poll-' + p.id;
+    } catch (e) { alertBox(e.message); }
   };
 
-  async function saveSettings(patch){
-    flash('setStatus', 'Saving…');
-    try { apply(await api('PATCH', '/api/settings', patch)); flash('setStatus', '✓ Saved', 'ok'); }
-    catch (e) { flash('setStatus', e.message, 'err'); }
+  // ---------- one poll ----------
+  function renderPoll(){
+    const link = linkFor(P.id);
+    $('view').innerHTML =
+      '<a class="back" href="#">← All polls</a>' +
+      '<div class="row" style="margin:8px 0 14px"><h2 style="margin:0;font-size:22px">' + esc(P.title || 'Untitled poll') + '</h2>' + statusPill(P) + '</div>' +
+      '<div class="stack">' +
+
+      // sharing
+      '<section class="card"><h2>Share</h2><div class="share"><div>' +
+        '<label class="f" style="margin-top:0">Link</label><div class="link"><input type="text" readonly value="' + esc(link) + '" aria-label="Poll link"><button class="btn secondary" id="copyLink">Copy</button></div>' +
+        (VOTE_URL ? '' : '<p class="hint" style="margin-top:6px">Set <b>VOTE_URL</b> in the Portainer stack (e.g. https://rankit-vote.locar.fyi) to get full links and a QR code.</p>') +
+        '<label class="f">Code — people can type it in at ' + esc(voteHost()) + '</label><div class="codebig">' + P.code + '</div>' +
+        (P.status === 'draft' ? '<p class="hint" style="margin-top:6px">The link and code start working when you open voting.</p>' : '') +
+        '<div class="row" style="margin-top:10px"><button class="btn secondary small" id="present">Show full screen</button><span class="status" id="shareStatus"></span></div>' +
+      '</div>' + (VOTE_URL ? '<div class="qrbox" id="qr" title="Show full screen">' + QR.svg(link, { size: 170 }) + '</div>' : '') + '</div></section>' +
+
+      // voting controls
+      '<section class="card"><h2>Voting</h2><div id="votingBody"></div>' +
+        '<label class="f">Who can see the results</label><select id="resultsMode">' +
+          '<option value="always">Everyone, live</option><option value="after-vote">Only people who have answered</option><option value="hidden">Nobody yet (only you, here)</option>' +
+        '</select></section>' +
+
+      // results
+      '<div class="row"><h2 style="margin:0">Results</h2><span class="status">' + plural(P.results.respondents, 'response', 'responses') + '</span>' +
+        '<span style="flex:1"></span><a class="btn secondary small" href="/report/' + P.id + '" target="_blank" rel="noopener">Report</a>' +
+        '<span id="clearArea"><button class="btn danger small" id="clear">Clear responses</button></span></div>' +
+      '<div class="stack" id="resultsBody">' + resultsHtml() + '</div>' +
+
+      // editor
+      '<section class="card" id="editor"></section>' +
+
+      // other actions
+      '<section class="card"><h2>More</h2><div class="row"><button class="btn secondary" id="dup">Duplicate poll</button>' +
+        '<span id="delArea"><button class="btn danger" id="del">Delete poll</button></span></div>' +
+        '<p class="hint" style="margin-top:8px">Duplicating copies the questions into a new draft poll with its own link and code, and no responses.</p></section>' +
+      '</div>';
+
+    $('resultsMode').value = P.resultsMode;
+    $('resultsMode').onchange = async () => { try { P = await api('PUT', '/api/polls/' + P.id, { resultsMode: $('resultsMode').value }); } catch (e) { alertBox(e.message); } };
+    $('copyLink').onclick = () => copy(link, 'shareStatus');
+    $('present').onclick = present;
+    if ($('qr')) $('qr').onclick = present;
+    $('dup').onclick = async () => { try { const c = await api('POST', '/api/polls/' + P.id + '/duplicate'); location.hash = '#poll-' + c.id; } catch (e) { alertBox(e.message); } };
+    confirmButton('del', 'delArea', 'Delete this poll and all its responses?', 'Delete', async () => { await api('DELETE', '/api/polls/' + P.id); location.hash = ''; });
+    confirmButton('clear', 'clearArea', 'Clear every response?', 'Clear', async () => { P = await api('DELETE', '/api/polls/' + P.id + '/responses'); renderPoll(); });
+    renderVoting();
+    renderEditor();
   }
-  $('open').onchange = () => saveSettings({ open: $('open').checked });
-  $('resultsMode').onchange = () => saveSettings({ results: $('resultsMode').value });
+  const resultsHtml = () => P.results.respondents ? allResults(P, P.results) : '<div class="card empty">No responses yet.</div>';
 
-  $('clear').onclick = () => { $('clear').classList.add('hidden'); $('clearConfirm').classList.remove('hidden'); };
-  $('clearNo').onclick = () => { $('clear').classList.remove('hidden'); $('clearConfirm').classList.add('hidden'); };
-  $('clearYes').onclick = async () => {
-    $('clearNo').onclick();
-    try { apply(await api('DELETE', '/api/ballots')); flash('resStatus', '✓ All votes cleared', 'ok'); }
-    catch (e) { flash('resStatus', e.message, 'err'); }
-  };
+  function confirmButton(btnId, areaId, question, yes, action){
+    $(btnId).onclick = () => {
+      $(areaId).innerHTML = '<span class="confirm"><span class="status">' + question + ' This can\'t be undone.</span>' +
+        '<button class="btn danger small" data-yes>' + yes + '</button><button class="btn secondary small" data-no>Cancel</button></span>';
+      $(areaId).querySelector('[data-no]').onclick = () => renderPoll();
+      $(areaId).querySelector('[data-yes]').onclick = async () => { try { await action(); } catch (e) { alertBox(e.message); } };
+    };
+  }
 
   async function copy(text, statusId){
     try { await navigator.clipboard.writeText(text); flash(statusId, '✓ Copied', 'ok'); }
-    catch (_) { flash(statusId, 'Copy failed — select and copy by hand.', 'err'); }
+    catch (_) { flash(statusId, 'Copy failed — select the link and copy it by hand.', 'err'); }
   }
-  $('copy').onclick = () => copy($('voteUrl').value, 'resStatus');
-  $('copyRes').onclick = () => {
-    if (!S || !S.results.voters) return flash('resStatus', 'No votes yet.', 'err');
-    const lines = [(S.title || 'Results') + ' — ' + S.results.voters + ' votes', ''].concat(
-      S.results.rows.map(r => (r.rank ?? '–') + '. ' + r.text + ' (' + (r.score === null ? 'not ranked' : 'score ' + r.score) +
-        ', ranked by ' + r.rankedBy + (r.unknownBy ? ', ' + r.unknownBy + ' don\'t know' : '') + ')'));
-    copy(lines.join('\n'), 'resStatus');
-  };
 
-  fetch('/api/state').then(r => r.json()).then(apply).catch(() => {});
+  // Full screen view to put on a TV or projector
+  function present(){
+    const o = $('overlay');
+    o.innerHTML = '<button class="btn secondary" id="closeOv">Close</button>' +
+      '<div class="big">' + esc(P.title || 'Poll') + '</div>' +
+      (VOTE_URL ? QR.svg(linkFor(P.id), { size: 600 }) : '') +
+      '<div>Scan the code, or go to <b>' + esc(voteHost()) + '</b> and enter</div><div class="code">' + P.code + '</div>';
+    o.classList.remove('hidden');
+    $('closeOv').onclick = () => o.classList.add('hidden');
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') $('overlay').classList.add('hidden'); });
+
+  // ---------- open / close / timer ----------
+  function timerControls(prefix){
+    return '<div class="seg">' +
+      '<label><input type="radio" name="' + prefix + 'mode" value="none" checked> No time limit — I\'ll close it myself</label>' +
+      '<label><input type="radio" name="' + prefix + 'mode" value="dur"> Close after <span class="inline"><input type="number" id="' + prefix + 'n" min="1" value="30" aria-label="How long">' +
+        '<select id="' + prefix + 'unit" aria-label="Unit"><option value="1">minutes</option><option value="60">hours</option><option value="1440">days</option></select></span></label>' +
+      '<label><input type="radio" name="' + prefix + 'mode" value="at"> Close at <input type="datetime-local" id="' + prefix + 'at" style="width:auto" aria-label="Closing time"></label>' +
+    '</div>';
+  }
+  function wireTimer(prefix){
+    // picking a value selects its option
+    [['n', 'dur'], ['unit', 'dur'], ['at', 'at']].forEach(([id, mode]) => $(prefix + id).addEventListener('focus', () => {
+      document.querySelector('input[name="' + prefix + 'mode"][value="' + mode + '"]').checked = true;
+    }));
+  }
+  function readTimer(prefix){
+    const mode = document.querySelector('input[name="' + prefix + 'mode"]:checked').value;
+    if (mode === 'dur') {
+      const n = Number($(prefix + 'n').value);
+      if (!(n > 0)) throw new Error('Enter how long voting should stay open.');
+      return { durationMinutes: n * Number($(prefix + 'unit').value) };
+    }
+    if (mode === 'at') {
+      if (!$(prefix + 'at').value) throw new Error('Pick the closing date and time.');
+      return { closesAt: new Date($(prefix + 'at').value).toISOString() };
+    }
+    return {};
+  }
+
+  function renderVoting(){
+    const el = $('votingBody');
+    if (P.status === 'open') {
+      el.innerHTML = '<p style="margin:0 0 10px"><b>Voting is open</b>' + (P.closesAt ? ' — closes in <b id="cd"></b> (' + when(P.closesAt) + ')' : ' with no time limit') + '.</p>' +
+        '<div class="row"><button class="btn danger" id="closeNow">Close voting now</button><button class="btn secondary" id="chgTimer">' + (P.closesAt ? 'Change timer' : 'Add a timer') + '</button></div>' +
+        '<div id="timerEdit" class="hidden">' + timerControls('t') + '<div class="row"><button class="btn small" id="saveTimer">Save timer</button><span class="status" id="timerStatus"></span></div></div>';
+      wireTimer('t');
+      $('closeNow').onclick = async () => { try { P = await api('POST', '/api/polls/' + P.id + '/close'); renderPoll(); } catch (e) { alertBox(e.message); } };
+      $('chgTimer').onclick = () => $('timerEdit').classList.toggle('hidden');
+      $('saveTimer').onclick = async () => {
+        try {
+          const t = readTimer('t');
+          const closesAt = t.durationMinutes ? new Date(Date.now() + clockOffset + t.durationMinutes * 60000).toISOString() : (t.closesAt || null);
+          P = await api('PUT', '/api/polls/' + P.id, { closesAt });
+          renderPoll();
+        } catch (e) { flash('timerStatus', e.message, 'err'); }
+      };
+    } else {
+      el.innerHTML = '<p style="margin:0 0 4px">' + (P.status === 'draft' ? 'This poll is a draft. Nobody can see it until you open voting.' :
+          'Voting closed' + (P.closedAt ? ' ' + when(P.closedAt) : '') + '. You can reopen it — existing responses are kept.') + '</p>' +
+        timerControls('o') + '<div class="row"><button class="btn" id="openNow">' + (P.status === 'draft' ? 'Open voting' : 'Reopen voting') + '</button><span class="status" id="openStatus"></span></div>';
+      wireTimer('o');
+      $('openNow').onclick = async () => {
+        try {
+          if (editTouched) throw new Error('Save your question changes first.');
+          P = await api('POST', '/api/polls/' + P.id + '/open', readTimer('o')); renderPoll();
+        } catch (e) { flash('openStatus', e.message, 'err'); }
+      };
+    }
+    tick();
+  }
+  function tick(){
+    const cd = $('cd');
+    if (cd && P && P.closesAt) cd.textContent = countdown(Date.parse(P.closesAt) - Date.now() - clockOffset);
+  }
+  setInterval(tick, 1000);
+
+  // ---------- question editor ----------
+  function toEdit(p){
+    return { title: p.title, subtitle: p.subtitle, questions: p.questions.map(q => ({
+      id: q.id, type: q.type, text: q.text, required: q.required, multi: !!q.multi,
+      options: (q.options || []).map(o => o.text).join('\n'),
+      min: q.min ?? '', max: q.max ?? '', step: q.step ?? 1, unit: q.unit || '' })) };
+  }
+  function fromEdit(){
+    return { title: edit.title, subtitle: edit.subtitle, questions: edit.questions.map(q => ({
+      id: q.id, type: q.type, text: q.text, required: q.required, multi: q.multi,
+      options: q.options.split('\n').map(s => s.trim()).filter(Boolean),
+      min: q.min, max: q.max, step: q.step, unit: q.unit })) };
+  }
+  const blankQ = type => ({ type, text: '', required: true, multi: false, options: '', min: type === 'number' ? 1 : '', max: type === 'number' ? 10 : '', step: 1, unit: '' });
+
+  function renderEditor(){
+    const el = $('editor');
+    el.innerHTML = '<h2>Questions</h2>' +
+      (P.results.respondents ? '<div class="warn">People have already answered. Changing a question\'s type, or the wording of an option, drops the answers that no longer fit. Adding options and questions is safe.</div>' : '') +
+      '<label class="f">Poll title</label><input type="text" data-k="title" maxlength="120" value="' + esc(edit.title) + '">' +
+      '<label class="f">Intro for voters (optional)</label><input type="text" data-k="subtitle" maxlength="300" value="' + esc(edit.subtitle) + '" placeholder="e.g. Help us plan next season">' +
+      '<div class="stack" style="margin-top:14px">' + edit.questions.map((q, i) => qEditor(q, i)).join('') + '</div>' +
+      '<div class="row" style="margin-top:12px"><span class="status">Add a question:</span>' +
+        '<button class="btn secondary small" data-add="rank">Ranking</button><button class="btn secondary small" data-add="choice">Choice</button><button class="btn secondary small" data-add="number">Number</button></div>' +
+      '<div class="row" style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px"><button class="btn" id="saveQs">Save questions</button><button class="btn secondary" id="undoQs"' + (editTouched ? '' : ' disabled') + '>Undo changes</button>' +
+        (editTouched ? '<span class="status" id="qStatus">Unsaved changes</span>' : Date.now() - savedAt < 5000 ? '<span class="status ok" id="qStatus">✓ Saved</span>' : '<span class="status" id="qStatus"></span>') + '</div>';
+
+    el.querySelectorAll('[data-k]').forEach(inp => inp.addEventListener('input', () => { edit[inp.dataset.k] = inp.value; touched(); }));
+    el.querySelectorAll('[data-q]').forEach(box => {
+      const i = Number(box.dataset.q), q = edit.questions[i];
+      box.querySelectorAll('[data-f]').forEach(inp => {
+        const f = inp.dataset.f;
+        inp.addEventListener(inp.type === 'checkbox' || inp.tagName === 'SELECT' ? 'change' : 'input', () => {
+          q[f] = inp.type === 'checkbox' ? inp.checked : inp.value;
+          touched();
+          if (f === 'type') { if (q.type === 'number' && q.min === '' && q.max === '') { q.min = 1; q.max = 10; } renderEditor(); }
+        });
+      });
+      box.querySelector('[data-up]').onclick = () => { [edit.questions[i - 1], edit.questions[i]] = [edit.questions[i], edit.questions[i - 1]]; touched(); renderEditor(); };
+      box.querySelector('[data-down]').onclick = () => { [edit.questions[i + 1], edit.questions[i]] = [edit.questions[i], edit.questions[i + 1]]; touched(); renderEditor(); };
+      box.querySelector('[data-rm]').onclick = () => { edit.questions.splice(i, 1); touched(); renderEditor(); };
+    });
+    el.querySelectorAll('[data-add]').forEach(b => b.onclick = () => { edit.questions.push(blankQ(b.dataset.add)); touched(); renderEditor(); });
+    $('undoQs').onclick = () => { editTouched = false; edit = toEdit(P); renderEditor(); };
+    $('saveQs').onclick = async () => {
+      $('saveQs').disabled = true; flash('qStatus', 'Saving…');
+      try {
+        P = await api('PUT', '/api/polls/' + P.id, fromEdit());
+        editTouched = false; edit = toEdit(P); savedAt = Date.now();
+        const y = window.scrollY; renderPoll(); window.scrollTo(0, y);
+      } catch (e) { flash('qStatus', e.message, 'err'); $('saveQs').disabled = false; }
+    };
+  }
+  function touched(){ editTouched = true; flash('qStatus', 'Unsaved changes'); const u = $('undoQs'); if (u) u.disabled = false; }
+
+  function qEditor(q, i){
+    const n = edit.questions.length;
+    const typeSel = '<select data-f="type" aria-label="Question type">' +
+      [['rank', 'Ranking'], ['choice', 'Choice'], ['number', 'Number']].map(([v, l]) => '<option value="' + v + '"' + (q.type === v ? ' selected' : '') + '>' + l + '</option>').join('') + '</select>';
+    let body = '';
+    if (q.type === 'number') {
+      body = '<div class="grid4" style="margin-top:10px">' +
+        '<div><label class="f" style="margin-top:0">Lowest</label><input type="number" data-f="min" value="' + esc(q.min) + '" placeholder="none"></div>' +
+        '<div><label class="f" style="margin-top:0">Highest</label><input type="number" data-f="max" value="' + esc(q.max) + '" placeholder="none"></div>' +
+        '<div><label class="f" style="margin-top:0">Step</label><input type="number" data-f="step" min="0" value="' + esc(q.step) + '"></div>' +
+        '<div><label class="f" style="margin-top:0">Unit (optional)</label><input type="text" data-f="unit" maxlength="20" value="' + esc(q.unit) + '" placeholder="e.g. hours"></div></div>' +
+        '<p class="hint" style="margin-top:6px">Up to 11 values (e.g. 1–10) show as buttons to tap. A bigger range, or no range, shows a number box. Leave Lowest and Highest empty to allow any number.</p>';
+    } else {
+      body = '<label class="f">Options — one per line</label><textarea data-f="options" placeholder="Option one&#10;Option two&#10;Option three">' + esc(q.options) + '</textarea>' +
+        (q.type === 'choice' ? '<label class="chk"><input type="checkbox" data-f="multi"' + (q.multi ? ' checked' : '') + '> Let people pick more than one</label>' : '') +
+        (q.type === 'rank' ? '<p class="hint" style="margin-top:6px">Voters drag these into order and can mark any of them "Don\'t know".</p>' : '');
+    }
+    return '<div class="qedit" data-q="' + i + '"><div class="top"><span class="num">' + (i + 1) + '</span>' + typeSel + '<span class="sp"></span>' +
+      '<button class="iconbtn" data-up aria-label="Move question up"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+      '<button class="iconbtn" data-down aria-label="Move question down"' + (i === n - 1 ? ' disabled' : '') + '>▼</button>' +
+      '<button class="btn danger small" data-rm>Remove</button></div>' +
+      '<label class="f">Question</label><input type="text" data-f="text" maxlength="200" value="' + esc(q.text) + '" placeholder="e.g. Which night suits you best?">' +
+      body +
+      '<label class="chk"><input type="checkbox" data-f="required"' + (q.required ? ' checked' : '') + '> Answer required</label></div>';
+  }
+
+  // ---------- live updates ----------
   const es = new EventSource('/api/events');
-  es.addEventListener('state', ev => apply(JSON.parse(ev.data)));
+  es.addEventListener('state', async ev => {
+    const { changed } = JSON.parse(ev.data);
+    if (changed === null) return;
+    try {
+      if (!currentId()) { await loadList(); renderList(); }
+      else if (changed === currentId()) {
+        await loadPoll(changed);
+        const busy = editTouched || (document.activeElement && document.activeElement.closest && document.activeElement.closest('#editor, #votingBody'));
+        if (busy) $('resultsBody').innerHTML = resultsHtml(); // don't wipe out unsaved typing
+        else { const y = window.scrollY; renderPoll(); window.scrollTo(0, y); }
+      }
+    } catch (_) { if (changed === currentId()) route(); }
+  });
+
+  route();
 })();
 </script>
 </body>
